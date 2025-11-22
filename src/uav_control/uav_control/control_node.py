@@ -51,7 +51,7 @@ class ControlNode(Node):
 		rclpy.spin_until_future_complete(self, future)
 
 		if future.result() and future.result().mode_sent:
-			self.get_logger.info('OFFBOARD mode set')
+			self.get_logger().info('OFFBOARD mode set')
 			return True
 		
 		return False
@@ -67,13 +67,13 @@ class ControlNode(Node):
 		rclpy.spin_until_future_complete(self, future)
 
 		if future.result() and future.result().mode_sent:
-			self.get_logger.info('VEHICLE armed')
+			self.get_logger().info('VEHICLE armed')
 			return True
 		
 		return False
 	
 	def takeoff(self, altitude=2.0):
-		self.get_logger.info('Setting takeoff altitude: {altitude}m')
+		self.get_logger().info(f'Setting takeoff altitude: {altitude}m')
 		self.target_pose.pose.position.z = altitude
 
 
@@ -82,11 +82,11 @@ def main(args=None):
 	node = ControlNode()
 
 	# Wait for MAVROS
-	node.get_logger.info('Waiting for MAVROS...')
+	node.get_logger().info('Waiting for MAVROS...')
 	while rclpy.ok() and not node.current_state.connected:
 		rclpy.spin_once(node, timeout_sec=1.0)
 
-	node.get_logger.info('MAVROS connected')	
+	node.get_logger().info('MAVROS connected')	
 
 	# Send initial setpoints
 	for i in range(100):
@@ -100,10 +100,10 @@ def main(args=None):
 
 	if node.set_offboard_mode():
 		if node.arm():
-			node.get_logger.info('Takeoff! Hovering at 2m!')
+				node.get_logger().info('Takeoff! Hovering at 2m!')
 		
 	rclpy.spin(node)
 		
-if __name__ == 'main':
+if __name__ == '__main__':
 	main()
 
