@@ -1,0 +1,28 @@
+[0.787s] Invoking command in '/home/andrey/sh-uav-platform/src/uav_control': PYTHONPATH=/home/andrey/sh-uav-platform/src/build/uav_control/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/andrey/sh-uav-platform/src/install/uav_control/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py egg_info --egg-base ../build/uav_control build --build-base /home/andrey/sh-uav-platform/src/build/uav_control/build install --record /home/andrey/sh-uav-platform/src/build/uav_control/install.log --single-version-externally-managed install_data
+[1.034s] running egg_info
+[1.049s] creating ../build/uav_control/uav_control.egg-info
+[1.049s] writing ../build/uav_control/uav_control.egg-info/PKG-INFO
+[1.050s] writing dependency_links to ../build/uav_control/uav_control.egg-info/dependency_links.txt
+[1.051s] writing requirements to ../build/uav_control/uav_control.egg-info/requires.txt
+[1.051s] writing top-level names to ../build/uav_control/uav_control.egg-info/top_level.txt
+[1.051s] writing manifest file '../build/uav_control/uav_control.egg-info/SOURCES.txt'
+[1.084s] reading manifest file '../build/uav_control/uav_control.egg-info/SOURCES.txt'
+[1.085s] writing manifest file '../build/uav_control/uav_control.egg-info/SOURCES.txt'
+[1.085s] running build
+[1.085s] running build_py
+[1.085s] creating /home/andrey/sh-uav-platform/src/build/uav_control/build/lib/uav_control
+[1.086s] copying uav_control/__init__.py -> /home/andrey/sh-uav-platform/src/build/uav_control/build/lib/uav_control
+[1.087s] running install
+[1.090s] running install_lib
+[1.106s] creating /home/andrey/sh-uav-platform/src/install/uav_control/lib/python3.10/site-packages/uav_control
+[1.106s] copying /home/andrey/sh-uav-platform/src/build/uav_control/build/lib/uav_control/__init__.py -> /home/andrey/sh-uav-platform/src/install/uav_control/lib/python3.10/site-packages/uav_control
+[1.107s] byte-compiling /home/andrey/sh-uav-platform/src/install/uav_control/lib/python3.10/site-packages/uav_control/__init__.py to __init__.cpython-310.pyc
+[1.107s] running install_data
+[1.108s] creating /home/andrey/sh-uav-platform/src/install/uav_control/share/ament_index/resource_index/packages
+[1.109s] copying resource/uav_control -> /home/andrey/sh-uav-platform/src/install/uav_control/share/ament_index/resource_index/packages
+[1.109s] copying package.xml -> /home/andrey/sh-uav-platform/src/install/uav_control/share/uav_control
+[1.109s] running install_egg_info
+[1.126s] Copying ../build/uav_control/uav_control.egg-info to /home/andrey/sh-uav-platform/src/install/uav_control/lib/python3.10/site-packages/uav_control-0.0.0-py3.10.egg-info
+[1.128s] running install_scripts
+[1.160s] writing list of installed files to '/home/andrey/sh-uav-platform/src/build/uav_control/install.log'
+[1.178s] Invoked command in '/home/andrey/sh-uav-platform/src/uav_control' returned '0': PYTHONPATH=/home/andrey/sh-uav-platform/src/build/uav_control/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/andrey/sh-uav-platform/src/install/uav_control/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py egg_info --egg-base ../build/uav_control build --build-base /home/andrey/sh-uav-platform/src/build/uav_control/build install --record /home/andrey/sh-uav-platform/src/build/uav_control/install.log --single-version-externally-managed install_data
