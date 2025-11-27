@@ -11,3 +11,12 @@ class TestTakeoffUseCase:
         
         with pytest.raises(ValueError, match="(?i)altitude"):
             use_case.execute(altitude=-5)
+            
+    def test_takeoff_rejects_excessive_altitude(self):
+        """Test that the takeoff use case rejects excessively high altitude values. >100m"""
+        
+        mock_controller = Mock()
+        use_case = TakeoffUseCase(mock_controller)
+        
+        with pytest.raises(ValueError, match="(?i)altitude"):
+            use_case.execute(altitude=150)
