@@ -2,6 +2,8 @@ import pytest
 from unittest.mock import Mock, call, ANY
 from uav_control.domain.use_cases.takeoff_use_case import TakeoffUseCase
 
+
+@pytest.mark.unit
 class TestTakeoffUseCase:
     def test_takeoff_rejects_negative_altitude(self):
         """Test that the takeoff use case rejects negative altitude values."""
