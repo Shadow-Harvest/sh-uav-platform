@@ -1,1 +1,65 @@
+# Git ignore for sh-uav-platform
+# Ignore common Python artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Byte-compiled / optimized / DLL files
+*.so
+*.dylib
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+*.egg
+pip-wheel-metadata/
+wheelhouse/
+
+# Colcon / ROS / workspace artifacts
+install/
+log/
+devel/
+build/
+
+# ROS overlay/workspace files
+*.overlay
+*.install
+*.rosinstall
+
+# Virtual environments
+venv/
+env/
+.venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Pytest
+.pytest_cache/
+
+# Mypy / lint caches
+.mypy_cache/
+.pylint.d/
+
+# Coverage
+.coverage
+htmlcov/
+coverage.xml
+
+# IDEs and editors
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Editor temporary files
+*~
+*.swp
+.DS_Store
+
+# Misc
+.cache/
+/.cache
+/.ropeproject
 .DS_Store
