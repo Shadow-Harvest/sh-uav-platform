@@ -69,10 +69,61 @@ pytest src/<package>/test/test_file.py::test_fn   # Run one test function
 | `make docker-build` | Rebuild Docker image |
 | `make clean` | Remove build artifacts |
 
+## PC Setup (WSL2 with GPU)
 
-## Troubleshooting:
-#### MAVROS can't connect to SITL:
+### Prerequisites (one-time)
+```bash
+# Install NVIDIA Container Toolkit
+curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | sudo gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg
+
+curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list | \
+  sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' | \
+  sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
+
+sudo apt-get update
+sudo apt-get install -y nvidia-container-toolkit
+sudo nvidia-ctk runtime configure --runtime=docker
+sudo systemctl restart docker
+
+# Install X11 utils for GUI
+sudo apt-get install -y x11-xserver-utils
 ```
-// specify out like this
+
+### Running SITL Test
+
+**Terminal 1 — Start ArduPilot SITL:**
+```bash
+cd ~/ardupilot/ArduCopter
 sim_vehicle.py -v ArduCopter --console --map --out=udp:0.0.0.0:14550
+```
+
+**Terminal 2 — Start ROS2 container with MAVROS:**
+```bash
+xhost +local:docker
+make dev
+
+# Inside container:
+source /opt/ros/humble/setup.bash
+ros2 launch mavros apm.launch fcu_url:=udp://:14550@host.docker.internal:14550
+```
+
+**Terminal 3 — Test commands:**
+```bash
+newgrp docker
+docker exec -it $(docker ps -q) bash
+
+# Inside container:
+source /opt/ros/humble/setup.bash
+
+# Check connection
+ros2 topic echo /mavros/state --once
+# Should show: connected: true
+
+# Test flight
+ros2 service call /mavros/set_mode mavros_msgs/srv/SetMode "{base_mode: 0, custom_mode: 'GUIDED'}"
+ros2 service call /mavros/cmd/arming mavros_msgs/srv/CommandBool "{value: true}"
+ros2 service call /mavros/cmd/takeoff mavros_msgs/srv/CommandTOL "{altitude: 3.0}"
+
+# Land
+ros2 service call /mavros/cmd/land mavros_msgs/srv/CommandTOL "{}"
 ```
