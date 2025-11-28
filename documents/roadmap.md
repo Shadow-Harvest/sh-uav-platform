@@ -1,7 +1,6 @@
 # Autonomous UAV Platform: 16-Week Implementation Roadmap
 
 **Project:** ArUco Search & Approach Mission  
-**Target:** Defense contractor portfolio piece  
 **Estimated Total Hours:** 400-500 hours (25-30 hrs/week)  
 **Start Date:** _______________
 
