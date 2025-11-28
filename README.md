@@ -70,8 +70,8 @@ pytest src/<package>/test/test_file.py::test_fn   # Run one test function
 | `make clean` | Remove build artifacts |
 
 
-### Troubleshooting:
-# When MAVROS can't connect to SITL:
+## Troubleshooting:
+#### MAVROS can't connect to SITL:
 ```
 // specify out like this
 sim_vehicle.py -v ArduCopter --console --map --out=udp:0.0.0.0:14550
