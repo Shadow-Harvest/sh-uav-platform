@@ -1,6 +1,6 @@
 from setuptools import find_packages, setup
 
-package_name = 'uav_control'
+package_name = 'autonomous_uav_control'
 
 setup(
     name=package_name,
@@ -13,8 +13,8 @@ setup(
     ],
     install_requires=['setuptools'],
     zip_safe=True,
-    maintainer='andrey',
-    maintainer_email='andrey@todo.todo',
+    maintainer='root',
+    maintainer_email='root@todo.todo',
     description='TODO: Package description',
     license='TODO: License declaration',
     extras_require={
@@ -24,7 +24,6 @@ setup(
     },
     entry_points={
         'console_scripts': [
-            'control_node = uav_control.control_node:main',
         ],
     },
 )
