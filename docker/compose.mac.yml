@@ -1,0 +1,11 @@
+# Mac-specific overrides (no GPU, no GUI)
+services:
+  dev:
+    # On Mac, network_mode: host doesn't work the same
+    # Override to use bridge network
+    network_mode: bridge
+    
+    # Expose ports for ROS2 if needed later
+    ports:
+      - "14550:14550/udp"  # MAVLink
+      - "14540:14540/udp"  # MAVLink

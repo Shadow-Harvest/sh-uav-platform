@@ -1,0 +1,27 @@
+services:
+  dev:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: sh_uav_platform:latest
+    container_name: sh_uav_platform-dev
+    
+    # Mount source code and build artifacts
+    volumes:
+      - ../src:/ws/src:rw
+      - ../build:/ws/build:rw
+      - ../install:/ws/install:rw
+      - ../log:/ws/log:rw
+    
+    working_dir: /ws
+    
+    # Keep container running for interactive use
+    stdin_open: true
+    tty: true
+    
+    # ROS2 domain isolation
+    environment:
+      - ROS_DOMAIN_ID=42
+    
+    # Use host network for ROS2 discovery simplicity
+    network_mode: host
