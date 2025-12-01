@@ -12,6 +12,7 @@ services:
       - ../build:/ws/build:rw
       - ../install:/ws/install:rw
       - ../log:/ws/log:rw
+      - ../scripts:/ws/scripts:rw
     
     working_dir: /ws
     
