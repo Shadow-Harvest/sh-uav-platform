@@ -5,7 +5,7 @@ import time
 
 class Week1Validator(Node):
     def __init__(self):
-        super().init__('week1_validator')
+        super().__init__('week1_validator')
         self.get_logger().info("Week 1 Validator starting...")
         
         # Create service clients
@@ -97,17 +97,17 @@ class Week1Validator(Node):
         self.get_logger().info("Week 1 validation completed successfully.")
         return True
     
-    def main():
-        rclpy.init()
-        validator = Week1Validator()
+def main():
+    rclpy.init()
+    validator = Week1Validator()
+    
+    try: 
+        validator.run_validation()
+    except KeyboardInterrupt:
+        validator.get_logger().info("Validation interrupted by user.")
+    finally:
+        validator.destroy_node()
+        rclpy.shutdown()
         
-        try: 
-            validator.run_validation()
-        except KeyboardInterrupt:
-            validator.get_logger().info("Validation interrupted by user.")
-        finally:
-            validator.destroy_node()
-            rclpy.shutdown()
-            
-    if __name__ == '__main__':
-        main()
+if __name__ == '__main__':
+    main()
