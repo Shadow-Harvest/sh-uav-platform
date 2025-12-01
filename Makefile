@@ -28,6 +28,18 @@ else
 	docker compose $(COMPOSE_FILES) up
 endif
 
+sitl: ## Start ArduPilot SITL with Gazebo (Terminal 1)
+	cd ~/ardupilot/ArduCopter && \
+	sim_vehicle.py -v ArduCopter --console --map --out=udp:0.0.0.0:14550
+
+mavros: ## Start MAVROS (Terminal 2 - run after SITL is up)
+	docker compose $(COMPOSE_FILES) up -d && \
+	sleep 3 && \
+	docker exec -it sh_uav_platform-dev bash -c "source /opt/ros/humble/setup.bash && ros2 launch mavros apm.launch fcu_url:=udp://:14550@host.docker.internal:14550"
+
+validate: ## Run Week 1 validation script (Terminal 3 - run after MAVROS connected)
+	docker exec -it sh_uav_platform-dev bash -c "source /opt/ros/humble/setup.bash && cd /ws/scripts && python3 week1_validation.py"
+
 docker-build: ## Build Docker image
 	docker compose $(COMPOSE_FILES) build
 
