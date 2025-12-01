@@ -1,4 +1,5 @@
 .PHONY: build test dev sim clean help
+SHELL := /bin/bash
 
 # Detect OS for correct compose file
 UNAME := $(shell uname)
@@ -28,16 +29,26 @@ else
 	docker compose $(COMPOSE_FILES) up
 endif
 
-sitl: ## Start ArduPilot SITL with Gazebo (Terminal 1)
-	cd ~/ardupilot/ArduCopter && \
-	sim_vehicle.py -v ArduCopter --console --map --out=udp:0.0.0.0:14550
+gazebo: ## Start Gazebo with drone model (Terminal 1)
+	source /usr/share/gazebo/setup.bash && \
+	export GAZEBO_MODEL_PATH=$$HOME/ardupilot_gazebo/models:$$GAZEBO_MODEL_PATH && \
+	export GAZEBO_RESOURCE_PATH=$$HOME/ardupilot_gazebo/worlds:$$GAZEBO_RESOURCE_PATH && \
+	cd ~/ardupilot_gazebo && \
+	gazebo --verbose worlds/iris_arducopter_runway.world
 
-mavros: ## Start MAVROS (Terminal 2 - run after SITL is up)
+sitl: ## Start ArduPilot SITL (Terminal 2 - after Gazebo is running)
+	source /usr/share/gazebo/setup.bash && \
+	export GAZEBO_MODEL_PATH=$$HOME/ardupilot_gazebo/models:$$GAZEBO_MODEL_PATH && \
+	export GAZEBO_RESOURCE_PATH=$$HOME/ardupilot_gazebo/worlds:$$GAZEBO_RESOURCE_PATH && \
+	cd ~/ardupilot/ArduCopter && \
+	sim_vehicle.py -v ArduCopter -f gazebo-iris --console --map --out=udp:0.0.0.0:14550
+
+mavros: ## Start MAVROS (Terminal 3 - run after SITL is up)
 	docker compose $(COMPOSE_FILES) up -d && \
 	sleep 3 && \
 	docker exec -it sh_uav_platform-dev bash -c "source /opt/ros/humble/setup.bash && ros2 launch mavros apm.launch fcu_url:=udp://:14550@host.docker.internal:14550"
 
-validate: ## Run Week 1 validation script (Terminal 3 - run after MAVROS connected)
+validate: ## Run Week 1 validation script (Terminal 4 - run after MAVROS connected)
 	docker exec -it sh_uav_platform-dev bash -c "source /opt/ros/humble/setup.bash && cd /ws/scripts && python3 week1_validation.py"
 
 docker-build: ## Build Docker image
