@@ -18,16 +18,16 @@ uint8 battery_status
 bool emergency_landing_is_active
 
 # Overall safety state constants
-uint8 SAFE=0
-uint8 WARNING=1
-uint8 CRITICAL=2
+uint8 SAFETY_STATE_SAFE = 0
+uint8 SAFETY_STATE_WARNING = 1
+uint8 SAFETY_STATE_CRITICAL = 2
 
 # Geofence status constants
-uint8 INSIDE=0
-uint8 APPROACHING_BOUNDARY=1
-uint8 VIOLATED=2
+uint8 GEOFENCE_STATUS_INSIDE = 0
+uint8 GEOFENCE_STATUS_APPROACHING_BOUNDARY = 1
+uint8 GEOFENCE_STATUS_VIOLATED = 2
 
 # Battery status constants
-uint8 OK=0
-uint8 LOW=1
-uint8 CRITICAL=2
+uint8 BATTERY_STATUS_OK = 0
+uint8 BATTERY_STATUS_LOW = 1
+uint8 BATTERY_STATUS_CRITICAL = 2
