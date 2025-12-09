@@ -38,3 +38,15 @@ class TestVehicleStateNodeLifecycle:
         assert result == TransitionCallbackReturn.SUCCESS
         assert node.fsm is not None
         assert node.fsm.current_state.id == 'disarmed'
+
+    def test_cleanup_destroys_fsm(self, node):
+        """on_cleanup should destroy the FSM."""
+        # First configure
+        node.on_configure(MagicMock())
+        assert node.fsm is not None
+        
+        # Then cleanup
+        result = node.on_cleanup(MagicMock())
+        
+        assert result == TransitionCallbackReturn.SUCCESS
+        assert node.fsm is None
