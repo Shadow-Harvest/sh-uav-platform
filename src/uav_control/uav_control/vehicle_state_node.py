@@ -19,7 +19,7 @@ class VehicleStateNode(LifecycleNode):
         self.fsm = None
         
         # MAVROS
-        self.mavros_stat_sub = None
+        self.mavros_state_sub = None
         self.is_connected = False
         self.is_armed = False
         self.is_guided = False
@@ -38,10 +38,10 @@ class VehicleStateNode(LifecycleNode):
         self.get_logger().info('Vehicle FSM initialized.')
         
         #MAVROS
-        self.mavros_stat_sub = self.create_subscription(
+        self.mavros_state_sub = self.create_subscription(
             MavrosState,
             '/mavros/state',
-            self.mavros_state_callback,
+            self._mavros_state_callback,
             10
         )
         self.get_logger().info('Subscribed to /mavros/state topic.')
@@ -101,7 +101,7 @@ class VehicleStateNode(LifecycleNode):
         
         vehicle_state_msg = VehicleState()
         vehicle_state_msg.header.stamp = self.get_clock().now().to_msg()
-        vehicle_state_msg.frame_id = 'base_link'
+        vehicle_state_msg.header.frame_id = 'base_link'
         
         vehicle_state_msg.fsm_state = self._fsm_state_to_msg()
         
@@ -111,8 +111,12 @@ class VehicleStateNode(LifecycleNode):
         self.state_pub.publish(vehicle_state_msg)
         self.get_logger().debug('Published vehicle state message.')
         
-    def fsm_state_to_msg(self) -> int:
+    def _fsm_state_to_msg(self) -> int:
         """Convert FSM state to VehicleState message enum."""
+        
+        if self.fsm is None:
+            return VehicleState.STATE_UNINITIALIZED
+        
         state_map = {
             'disarmed': VehicleState.STATE_DISARMED,
             'armed': VehicleState.STATE_ARMED,
@@ -123,7 +127,7 @@ class VehicleStateNode(LifecycleNode):
             'emergency': VehicleState.STATE_EMERGENCY,
         }
         
-        return state_map.get(self.fsm.current_state.id, VehicleState.FSM_STATE_UNITIALIZED)
+        return state_map.get(self.fsm.current_state.id, VehicleState.STATE_UNINITIALIZED)
     
     
 def main(args=None):
