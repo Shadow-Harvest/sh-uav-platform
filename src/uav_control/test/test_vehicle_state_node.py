@@ -81,3 +81,24 @@ class TestFsmStateMapping:
         result = node._fsm_state_to_msg()
         assert result == VehicleState.STATE_UNINITIALIZED
 
+class TestMavrosCallback:
+    """Test MAVROS state callback."""
+    
+    def test_callback_updates_armed_state(self, node):
+        """MAVROS callback should update is_armed."""
+        from mavros_msgs.msg import State as MavrosState
+        
+        node.on_configure(MagicMock())
+        
+        # Create fake MAVROS message
+        msg = MavrosState()
+        msg.armed = True
+        msg.connected = True
+        msg.mode = 'GUIDED'
+        
+        # Call the callback directly
+        node._mavros_state_callback(msg)
+        
+        assert node.is_armed == True
+        assert node.is_connected == True
+        assert node.is_guided == True
