@@ -50,3 +50,34 @@ class TestVehicleStateNodeLifecycle:
         
         assert result == TransitionCallbackReturn.SUCCESS
         assert node.fsm is None
+        
+class TestFsmStateMapping:
+    """Test FSM state to message mapping."""
+    
+    def test_disarmed_maps_correctly(self, node):
+        """Disarmed FSM state should map to STATE_DISARMED."""
+        from uav_msgs.msg import VehicleState
+        
+        node.on_configure(MagicMock())
+        
+        result = node._fsm_state_to_msg()
+        assert result == VehicleState.STATE_DISARMED
+    
+    def test_armed_maps_correctly(self, node):
+        """Armed FSM state should map to STATE_ARMED."""
+        from uav_msgs.msg import VehicleState
+        
+        node.on_configure(MagicMock())
+        node.fsm.arm()
+        
+        result = node._fsm_state_to_msg()
+        assert result == VehicleState.STATE_ARMED
+    
+    def test_unconfigured_returns_uninitialized(self, node):
+        """When FSM is None, should return STATE_UNINITIALIZED."""
+        from uav_msgs.msg import VehicleState
+        
+        # Don't configure - fsm stays None
+        result = node._fsm_state_to_msg()
+        assert result == VehicleState.STATE_UNINITIALIZED
+
