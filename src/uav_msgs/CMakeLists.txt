@@ -19,6 +19,11 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/MissionStatus.msg"
   "msg/SafetyStatus.msg"
   "msg/TrackedTarget.msg"
+
+  "action/Takeoff.action"
+  "action/Land.action"
+  "action/HoldPosition.action"
+  
   DEPENDENCIES std_msgs geometry_msgs
 )
 
