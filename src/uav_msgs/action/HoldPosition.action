@@ -1,0 +1,10 @@
+# Goal
+float32 duration_sec
+---
+# Result
+bool success
+string message
+---
+# Feedback
+float32 duration_remaining_sec
+float32 drift_distance_m
