@@ -173,7 +173,6 @@ class VehicleController(LifecycleNode):
         # Step 5: Monitor altitude until reached or timeout
         feedback = Takeoff.Feedback()
         start_time = self.get_clock().now()
-        rate = self.create_rate(10)  # 10Hz feedback
         
         while rclpy.ok():
             # Get current altitude
@@ -199,7 +198,7 @@ class VehicleController(LifecycleNode):
                 goal_handle.abort()
                 return Takeoff.Result(success=False, message='Takeoff timed out.', final_altitude_m=current_alt)
             
-            rate.sleep()
+            time.sleep(0.1)
 
     def _mavros_takeoff(self, altitude: float) -> bool:
         """Command takeoff via MAVROS"""
