@@ -143,7 +143,7 @@ class VehicleController(LifecycleNode):
             return Takeoff.Result(success=False, message='Failed to set GUIDED mode.')
         
         # Step 2: Arm the vehicle
-        if not self._arm_vehicle():
+        if not self._arm_vehicle(True):
             goal_handle.abort()
             return Takeoff.Result(success=False, message='Failed to arm vehicle.')
         
