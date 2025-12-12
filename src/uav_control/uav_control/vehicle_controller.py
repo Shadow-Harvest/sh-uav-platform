@@ -178,46 +178,46 @@ class VehicleController(LifecycleNode):
             
             rate.sleep()
             
-        def _set_mode(self, mode: str) -> bool:
-            """Set the vehicle mode via MAVROS."""
-            if not self.mode_client.wait_for_service(timeout_sec=5.0):
-                self.get_logger().error('Mode service not available.')
-                return False
-
-            request = SetMode.Request()
-            request.custom_mode = mode
-            
-            future = self.mode_client.call_async(request)
-            rclpy.spin_until_future_complete(self, future, timeout_sec=5.0)
-            
-            if future.result() is not None:
-                success = future.result().mode_sent
-                self.get_logger().info(f'Mode set to {mode}: {success}')
-                return success
-            
-            self.get_logger().error('Failed to call mode service.')
+    def _set_mode(self, mode: str) -> bool:
+        """Set the vehicle mode via MAVROS."""
+        if not self.mode_client.wait_for_service(timeout_sec=5.0):
+            self.get_logger().error('Mode service not available.')
             return False
+
+        request = SetMode.Request()
+        request.custom_mode = mode
         
-        def _arm_vehicle(self, arm: bool) -> bool:
-            """Arm the vehicle via MAVROS."""
-            if not self.arm_client.wait_for_service(timeout_sec=5.0):
-                self.get_logger().error('Arming service not available.')
-                return False
-
-            request = CommandBool.Request()
-            request.value = arm
-            
-            future = self.arm_client.call_async(request)
-            rclpy.spin_until_future_complete(self, future, timeout_sec=5.0)
-            
-            if future.result() is not None:
-                success = future.result().success
-                action = 'Armed' if arm else 'Disarmed'
-                self.get_logger().info(f'Vehicle {action}: {success}')
-                return success
-            
-            self.get_logger().error('Arming service call failed.')
+        future = self.mode_client.call_async(request)
+        rclpy.spin_until_future_complete(self, future, timeout_sec=5.0)
+        
+        if future.result() is not None:
+            success = future.result().mode_sent
+            self.get_logger().info(f'Mode set to {mode}: {success}')
+            return success
+        
+        self.get_logger().error('Failed to call mode service.')
+        return False
+    
+    def _arm_vehicle(self, arm: bool) -> bool:
+        """Arm the vehicle via MAVROS."""
+        if not self.arm_client.wait_for_service(timeout_sec=5.0):
+            self.get_logger().error('Arming service not available.')
             return False
+
+        request = CommandBool.Request()
+        request.value = arm
+        
+        future = self.arm_client.call_async(request)
+        rclpy.spin_until_future_complete(self, future, timeout_sec=5.0)
+        
+        if future.result() is not None:
+            success = future.result().success
+            action = 'Armed' if arm else 'Disarmed'
+            self.get_logger().info(f'Vehicle {action}: {success}')
+            return success
+        
+        self.get_logger().error('Arming service call failed.')
+        return False
     
         
 def main(args=None):
