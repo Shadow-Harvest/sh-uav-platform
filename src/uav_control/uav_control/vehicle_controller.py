@@ -7,8 +7,15 @@ Responsibilities:
 - Action servers for Takeoff, Land, HoldPosition (future)
 """
 
+import time
+from urllib import request
+import rclpy
 from rclpy.lifecycle import LifecycleNode, LifecycleState, TransitionCallbackReturn
+from rclpy.action import ActionServer
+from rclpy.action.server import ServerGoalHandle
 from geometry_msgs.msg import PoseStamped
+from mavros_msgs.srv import CommandBool, SetMode
+from uav_msgs.action import Takeoff
 
 
 class VehicleController(LifecycleNode):
@@ -57,6 +64,19 @@ class VehicleController(LifecycleNode):
         self.target_pose.header.frame_id = 'map'
         self.target_pose.pose.position.z = 0.0
         
+        # MAVROS service clients
+        self.arm_client = self.create_client(CommandBool, '/mavros/cmd/arming')
+        self.mode_client = self.create_client(SetMode, '/mavros/set_mode')
+        
+        # Takeoff action server
+        self.takeoff_server = ActionServer(
+            self,
+            Takeoff,
+            'vehicle/takeoff',
+            execute_callback=self._execute_takeoff
+        )
+        self.get_logger().info('Takeoff action server initialized.')
+        
         self.get_logger().info('VehicleController configured.')
         return TransitionCallbackReturn.SUCCESS
         
@@ -98,6 +118,107 @@ class VehicleController(LifecycleNode):
         if self.setpoint_pub is not None and self.target_pose is not None:
             self.target_pose.header.stamp = self.get_clock().now().to_msg()
             self.setpoint_pub.publish(self.target_pose)
+            
+    def _execute_takeoff(self, goal_handle: ServerGoalHandle):
+        """Execute takeoff action."""
+        self.get_logger().info('Takeoff action requested.')
+        
+        target_altitude = goal_handle.request.target_altitude_m
+        timeout = goal_handle.request.timeout_sec
+        
+        self.get_logger().info(f'Taking off to altitude: {target_altitude} meters. Timeout: {timeout} seconds.')
+        
+        # Step 1: Set GUIDED mode
+        if not self._set_mode('GUIDED'):
+            goal_handle.abort()
+            return Takeoff.Result(success=False, message='Failed to set GUIDED mode.')
+        
+        # Step 2: Arm the vehicle
+        if not self._arm_vehicle():
+            goal_handle.abort()
+            return Takeoff.Result(success=False, message='Failed to arm vehicle.')
+        
+        # Step 3: Set target altitude (keeping current x,y)
+        current_x = 0.0
+        current_y = 0.0
+        if self.current_pose is not None:
+            current_x = self.current_pose.pose.position.x
+            current_y = self.current_pose.pose.position.y
+            
+        self.set_target_position(current_x, current_y, target_altitude)
+        
+        # Step 4: Monitor altitude until reached or timeout
+        feedback = Takeoff.Feedback()
+        start_time = self.get_clock().now()
+        rate = self.create_rate(10)  # 10Hz feedback
+        
+        while rclpy.ok():
+            # Get current altitude
+            current_alt = 0.0
+            if self.current_pose is not None:
+                current_alt = self.current_pose.pose.position.z
+                
+            # Publish feedback
+            feedback.current_altitude_m = current_alt
+            feedback.progress_percent = min(100.0, (current_alt / target_altitude) * 100.0)
+            goal_handle.publish_feedback(feedback)
+            
+            # Check if target altitude reached (within 0.2m tolerance)
+            if current_alt >= target_altitude - 0.2:
+                self.get_logger().info('Target altitude reached.')
+                goal_handle.succeed()
+                return Takeoff.Result(success=True, message='Takeoff successful.', final_altitude_m=current_alt)
+            
+            # Check for timeout
+            elapsed = (self.get_clock().now() - start_time).nanoseconds / 1e9
+            if timeout > 0 and elapsed > timeout:
+                self.get_logger().info('Takeoff timed out.')
+                goal_handle.abort()
+                return Takeoff.Result(success=False, message='Takeoff timed out.', final_altitude_m=current_alt)
+            
+            rate.sleep()
+            
+        def _set_mode(self, mode: str) -> bool:
+            """Set the vehicle mode via MAVROS."""
+            if not self.mode_client.wait_for_service(timeout_sec=5.0):
+                self.get_logger().error('Mode service not available.')
+                return False
+
+            request = SetMode.Request()
+            request.custom_mode = mode
+            
+            future = self.mode_client.call_async(request)
+            rclpy.spin_until_future_complete(self, future, timeout_sec=5.0)
+            
+            if future.result() is not None:
+                success = future.result().mode_sent
+                self.get_logger().info(f'Mode set to {mode}: {success}')
+                return success
+            
+            self.get_logger().error('Failed to call mode service.')
+            return False
+        
+        def _arm_vehicle(self, arm: bool) -> bool:
+            """Arm the vehicle via MAVROS."""
+            if not self.arm_client.wait_for_service(timeout_sec=5.0):
+                self.get_logger().error('Arming service not available.')
+                return False
+
+            request = CommandBool.Request()
+            request.value = arm
+            
+            future = self.arm_client.call_async(request)
+            rclpy.spin_until_future_complete(self, future, timeout_sec=5.0)
+            
+            if future.result() is not None:
+                success = future.result().success
+                action = 'Armed' if arm else 'Disarmed'
+                self.get_logger().info(f'Vehicle {action}: {success}')
+                return success
+            
+            self.get_logger().error('Arming service call failed.')
+            return False
+    
         
 def main(args=None):
     import rclpy
