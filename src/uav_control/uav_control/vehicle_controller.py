@@ -8,8 +8,8 @@ Responsibilities:
 """
 
 import time
-from urllib import request
 import rclpy
+
 from rclpy.lifecycle import LifecycleNode, LifecycleState, TransitionCallbackReturn
 from rclpy.action import ActionServer
 from rclpy.action.server import ServerGoalHandle
@@ -108,6 +108,15 @@ class VehicleController(LifecycleNode):
         
         self.current_pose = None
         return TransitionCallbackReturn.SUCCESS
+    
+    def set_target_position(self, x: float, y: float, z: float):
+        """Set the target position for the vehicle."""
+        if self.target_pose is None:
+           return
+        
+        self.target_pose.pose.position.x = x
+        self.target_pose.pose.position.y = y
+        self.target_pose.pose.position.z = z
     
     def _pose_callback(self, msg: PoseStamped):
         """Callback to update current pose."""
