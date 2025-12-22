@@ -24,6 +24,8 @@ def node(rclpy_init):
     node.destroy_node()
 
 
+# TODO: Test that node constantly publishes setpoints when armed and in GUIDED mode.
+
 class TestTakeoffCallbackProcessing:
     """Test callback processing during takeoff."""
 
