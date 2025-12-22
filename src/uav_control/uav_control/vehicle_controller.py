@@ -198,7 +198,7 @@ class VehicleController(LifecycleNode):
                 goal_handle.abort()
                 return Takeoff.Result(success=False, message='Takeoff timed out.', final_altitude_m=current_alt)
             
-            time.sleep(0.1)
+            rclpy.spin_once(self, timeout_sec=0.1)
 
     def _mavros_takeoff(self, altitude: float) -> bool:
         """Command takeoff via MAVROS"""
