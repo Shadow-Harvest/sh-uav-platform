@@ -151,17 +151,7 @@ class VehicleController(LifecycleNode):
             goal_handle.abort()
             return Takeoff.Result(success=False, message='Failed to set GUIDED mode.')
         
-        # Step 2: Arm the vehicle
-        if not self._arm_vehicle(True):
-            goal_handle.abort()
-            return Takeoff.Result(success=False, message='Failed to arm vehicle.')
-        
-         # Step 3: Command takeoff via MAVROS
-        if not self._mavros_takeoff(target_altitude):
-            goal_handle.abort()
-            return Takeoff.Result(success=False, message='Failed to initiate takeoff.')
-        
-        # Step 4: Set target altitude (keeping current x,y)
+        # Step 2: Set target altitude (keeping current x,y)
         current_x = 0.0
         current_y = 0.0
         if self.current_pose is not None:
@@ -170,7 +160,12 @@ class VehicleController(LifecycleNode):
             
         self.set_target_position(current_x, current_y, target_altitude)
         
-        # Step 5: Monitor altitude until reached or timeout
+        # Step 3: Arm the vehicle
+        if not self._arm_vehicle(True):
+            goal_handle.abort()
+            return Takeoff.Result(success=False, message='Failed to arm vehicle.')
+        
+        # Step 4: Monitor altitude until reached or timeout
         feedback = Takeoff.Feedback()
         start_time = self.get_clock().now()
         
@@ -200,26 +195,6 @@ class VehicleController(LifecycleNode):
             
             rclpy.spin_once(self, timeout_sec=0.1)
 
-    def _mavros_takeoff(self, altitude: float) -> bool:
-        """Command takeoff via MAVROS"""
-        if not self.takeoff_client.wait_for_service(timeout_sec=5.0):
-            self.get_logger().error('Takeoff service not available')
-            return False
-        
-        request = CommandTOL.Request()
-        request.altitude = altitude
-
-        future = self.takeoff_client.call_async(request)
-        rclpy.spin_until_future_complete(self, future, timeout_sec=5.0)
-
-        if future.result() is not None:
-            success = future.result().success
-            self.get_logger().info(f'MAVROS takeoff command : {success}')
-            return success
-    
-        self.get_logger().error('Takeoff service call failed')
-        return False
-            
     def _set_mode(self, mode: str) -> bool:
         """Set the vehicle mode via MAVROS."""
         if not self.mode_client.wait_for_service(timeout_sec=5.0):
