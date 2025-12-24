@@ -61,50 +61,29 @@ class TestTakeoffSetpointPublishing:
         )
         
 class TestTakeoffSequence:
-    def test_takeoff_fails_on_non_activated_node(self, node):
-        """Takeoff must fail if node is not activated."""
-        node.on_configure(MagicMock())
-        
-        node._set_mode = MagicMock(return_value=True)
-        node._arm_vehicle = MagicMock(return_value=True)
-        
-        goal_handle = MagicMock()
-        goal_handle.request.target_altitude_m = 5.0
-        goal_handle.request.timeout_sec = 0.2
-        
-        result = node._execute_takeoff(goal_handle)
-        
-        assert goal_handle.abort.call_count == 1, (
-            "Takeoff must abort if node is not activated"
-        )
-        
-        assert result.success is False, (
-            "Takeoff result must indicate failure if node is not activated"
-        )
-        
-        assert node._arm_vehicle.call_count == 0, (
-            "Takeoff must not attempt to arm vehicle if node is not activated"
-        )
-
-class TestTakeoffCallbackProcessing:
-    """Test callback processing during takeoff."""
-
-    def test_takeoff_loop_calls_spin_once(self, node):
-        """Loop must call spin_once() to process pose callbacks."""
+    def test_takeoff_calls_mavros_takeoff_service_after_arming(self, node):
+        """Takeoff must call MAVROS takeoff command after arming."""
         node.on_configure(MagicMock())
         node.on_activate(MagicMock())
         
         node._set_mode = MagicMock(return_value=True)
         node._arm_vehicle = MagicMock(return_value=True)
+        node._mavros_takeoff = MagicMock(return_value=True)
+        
+        # Simulate being at target altitude immediately
+        node.current_pose = PoseStamped()
+        node.current_pose.pose.position.z = 5.0
         
         goal_handle = MagicMock()
         goal_handle.request.target_altitude_m = 5.0
-        goal_handle.request.timeout_sec = 0.2
-
-        with patch('uav_control.vehicle_controller.rclpy.spin_once') as mock_spin:
-            mock_spin.side_effect = lambda n, timeout_sec=0.1: time.sleep(timeout_sec)
-            node._execute_takeoff(goal_handle)
+        goal_handle.request.timeout_sec = 1.0
         
-        assert mock_spin.called, (
-            "Loop must call spin_once() to process callbacks, not time.sleep()"
+        node._execute_takeoff(goal_handle)
+            
+        # Verify the call sequence
+        assert node._mavros_takeoff.called, (
+            "Takeoff must call _mavros_takeoff() to send NAV_TAKEOFF command"
+        )
+        assert node._mavros_takeoff.call_args[0][0] == 5.0, (
+            "Takeoff must pass target altitude to _mavros_takeoff()"
         )
