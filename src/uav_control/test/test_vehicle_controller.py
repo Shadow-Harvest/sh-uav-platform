@@ -1,0 +1,113 @@
+"""Tests for VehicleController."""
+
+import time
+import pytest
+import rclpy
+from unittest.mock import MagicMock, patch
+from geometry_msgs.msg import PoseStamped
+from uav_control.vehicle_controller import VehicleController
+
+
+@pytest.fixture(scope="module")
+def rclpy_init():
+    """Initialize rclpy once for all tests."""
+    rclpy.init()
+    yield
+    rclpy.shutdown()
+
+
+@pytest.fixture
+def node(rclpy_init):
+    """Create a fresh node for each test."""
+    node = VehicleController()
+    yield node
+    node.destroy_node()
+
+
+# TODO: Test that node constantly publishes setpoints when armed and in GUIDED mode.
+
+class TestTakeoffSetpointPublishing:
+    def test_publish_setpoint_sets_current_timestamp(self, node):
+        """Published setpoint must have current timestamp."""
+        node.setpoint_pub = MagicMock()
+        node.target_pose = PoseStamped()
+        
+        before = node.get_clock().now()
+        node._publish_setpoint()
+        after = node.get_clock().now()
+        
+        published_msg = node.setpoint_pub.publish.call_args[0][0]
+        stamp = published_msg.header.stamp
+        # Verify timestamp is between before and after
+        msg_time = stamp.sec + stamp.nanosec / 1e9
+        before_time = before.nanoseconds / 1e9
+        after_time = after.nanoseconds / 1e9
+        
+        assert before_time <= msg_time <= after_time
+
+    def test_publish_setpoint_publishes_stamped_pose(self, node):
+        """Publish setpoint must publish a PoseStamped message."""
+        node.setpoint_pub = MagicMock()
+        node.target_pose = PoseStamped()
+        
+        node._publish_setpoint()
+        
+        assert node.setpoint_pub.publish.called, (
+            "Publish setpoint must call publisher's publish() method"
+        )
+        published_msg = node.setpoint_pub.publish.call_args[0][0]
+        assert isinstance(published_msg, PoseStamped), (
+            "Published message must be of type PoseStamped"
+        )
+        
+class TestTakeoffSequence:
+    def test_takeoff_calls_mavros_takeoff_service_after_arming(self, node):
+        """Takeoff must call MAVROS takeoff command after arming."""
+        node.on_configure(MagicMock())
+        node.on_activate(MagicMock())
+        
+        node._set_mode = MagicMock(return_value=True)
+        node._arm_vehicle = MagicMock(return_value=True)
+        node._mavros_takeoff = MagicMock(return_value=True)
+        
+        # Simulate being at target altitude immediately
+        node.current_pose = PoseStamped()
+        node.current_pose.pose.position.z = 5.0
+        
+        goal_handle = MagicMock()
+        goal_handle.request.target_altitude_m = 5.0
+        goal_handle.request.timeout_sec = 1.0
+        
+        node._execute_takeoff(goal_handle)
+            
+        # Verify the call sequence
+        assert node._mavros_takeoff.called, (
+            "Takeoff must call _mavros_takeoff() to send NAV_TAKEOFF command"
+        )
+        assert node._mavros_takeoff.call_args[0][0] == 5.0, (
+            "Takeoff must pass target altitude to _mavros_takeoff()"
+        )
+
+class TestLandSequence:
+    """Tests for Land action."""
+
+    def test_land_calls_mavros_land_service(self, node):
+        """Land must call MAVROS land command."""
+        node.on_configure(MagicMock())
+        node.on_activate(MagicMock())
+        
+        node._mavros_land = MagicMock(return_value=True)
+        
+        # Simulate being in the air, then landing
+        node.current_pose = PoseStamped()
+        node.current_pose.pose.position.z = 0.1  # Near ground = landed
+        
+        goal_handle = MagicMock()
+        goal_handle.request.timeout_sec = 10.0
+        
+        with patch('uav_control.vehicle_controller.rclpy.spin_once'):
+            node._execute_land(goal_handle)
+        
+        assert node._mavros_land.called, (
+            "Land must call _mavros_land() to send NAV_LAND command"
+        )

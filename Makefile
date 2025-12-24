@@ -21,6 +21,10 @@ build: ## Build ROS2 workspace
 test: ## Run all tests
 	docker compose $(COMPOSE_FILES) run --rm dev bash -c "source /opt/ros/humble/setup.bash && colcon build --symlink-install && colcon test && colcon test-result --verbose"
 
+pytest: ## Run pytest only (faster for TDD)
+	docker compose $(COMPOSE_FILES) run --rm dev bash -c "source /opt/ros/humble/setup.bash && colcon build --symlink-install --packages-select uav_control && source install/setup.bash && pytest src/uav_control/test/test_vehicle_controller.py -v"
+
+
 sim: ## Launch SITL simulation (PC only)
 ifeq ($(UNAME), Darwin)
 	@echo "Simulation with GUI not supported on Mac. Use 'make dev' and run headless tests."
