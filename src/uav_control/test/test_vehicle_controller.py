@@ -4,7 +4,7 @@ import time
 import pytest
 import rclpy
 from unittest.mock import MagicMock, patch
-
+from geometry_msgs.msg import PoseStamped
 from uav_control.vehicle_controller import VehicleController
 
 
@@ -25,6 +25,40 @@ def node(rclpy_init):
 
 
 # TODO: Test that node constantly publishes setpoints when armed and in GUIDED mode.
+
+class TestTakeoffSetpointPublishing:
+    def test_publish_setpoint_sets_current_timestamp(self, node):
+        """Published setpoint must have current timestamp."""
+        node.setpoint_pub = MagicMock()
+        node.target_pose = PoseStamped()
+        
+        before = node.get_clock().now()
+        node._publish_setpoint()
+        after = node.get_clock().now()
+        
+        published_msg = node.setpoint_pub.publish.call_args[0][0]
+        stamp = published_msg.header.stamp
+        # Verify timestamp is between before and after
+        msg_time = stamp.sec + stamp.nanosec / 1e9
+        before_time = before.nanoseconds / 1e9
+        after_time = after.nanoseconds / 1e9
+        
+        assert before_time <= msg_time <= after_time
+
+    def test_publish_setpoint_publishes_stamped_pose(self, node):
+        """Publish setpoint must publish a PoseStamped message."""
+        node.setpoint_pub = MagicMock()
+        node.target_pose = PoseStamped()
+        
+        node._publish_setpoint()
+        
+        assert node.setpoint_pub.publish.called, (
+            "Publish setpoint must call publisher's publish() method"
+        )
+        published_msg = node.setpoint_pub.publish.call_args[0][0]
+        assert isinstance(published_msg, PoseStamped), (
+            "Published message must be of type PoseStamped"
+        )
 
 class TestTakeoffCallbackProcessing:
     """Test callback processing during takeoff."""
