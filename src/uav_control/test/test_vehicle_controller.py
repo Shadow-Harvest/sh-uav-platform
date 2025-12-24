@@ -87,3 +87,27 @@ class TestTakeoffSequence:
         assert node._mavros_takeoff.call_args[0][0] == 5.0, (
             "Takeoff must pass target altitude to _mavros_takeoff()"
         )
+
+class TestLandSequence:
+    """Tests for Land action."""
+
+    def test_land_calls_mavros_land_service(self, node):
+        """Land must call MAVROS land command."""
+        node.on_configure(MagicMock())
+        node.on_activate(MagicMock())
+        
+        node._mavros_land = MagicMock(return_value=True)
+        
+        # Simulate being in the air, then landing
+        node.current_pose = PoseStamped()
+        node.current_pose.pose.position.z = 0.1  # Near ground = landed
+        
+        goal_handle = MagicMock()
+        goal_handle.request.timeout_sec = 10.0
+        
+        with patch('uav_control.vehicle_controller.rclpy.spin_once'):
+            node._execute_land(goal_handle)
+        
+        assert node._mavros_land.called, (
+            "Land must call _mavros_land() to send NAV_LAND command"
+        )

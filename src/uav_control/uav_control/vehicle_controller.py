@@ -15,7 +15,7 @@ from rclpy.action.server import ServerGoalHandle
 from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy
 from geometry_msgs.msg import PoseStamped
 from mavros_msgs.srv import CommandBool, SetMode, CommandTOL
-from uav_msgs.action import Takeoff
+from uav_msgs.action import Takeoff, Land
 
 
 class VehicleController(LifecycleNode):
@@ -75,6 +75,7 @@ class VehicleController(LifecycleNode):
         self.arm_client = self.create_client(CommandBool, '/mavros/cmd/arming')
         self.mode_client = self.create_client(SetMode, '/mavros/set_mode')
         self.takeoff_client = self.create_client(CommandTOL, '/mavros/cmd/takeoff')
+        self.land_client = self.create_client(CommandTOL, '/mavros/cmd/land')
         
         # Takeoff action server
         self.takeoff_server = ActionServer(
@@ -84,6 +85,15 @@ class VehicleController(LifecycleNode):
             execute_callback=self._execute_takeoff
         )
         self.get_logger().info('Takeoff action server initialized.')
+        
+        # Land action server
+        self.land_server = ActionServer(
+            self,
+            Land,
+            'vehicle/land',
+            execute_callback=self._execute_land
+        )
+        self.get_logger().info('Land action server initialized.')
         
         self.get_logger().info('VehicleController configured.')
         return TransitionCallbackReturn.SUCCESS
@@ -275,7 +285,74 @@ class VehicleController(LifecycleNode):
         self.get_logger().error('Arming service call failed.')
         return False
     
+    def _execute_land(self, goal_handle: ServerGoalHandle):
+        """Execute land action."""
+        self.get_logger().info('Land action requested.')
         
+        starting_altitude = self.current_pose.pose.position.z
+        timeout = goal_handle.request.timeout_sec
+        
+        self.get_logger().info(f'Landing from altitude: {starting_altitude} meters. Timeout: {timeout} seconds.')
+        
+        # Command land via MAVROS
+        if not self._mavros_land():
+            goal_handle.abort()
+            return Land.Result(success=False, message='MAVROS land command failed.')
+        
+        feedback = Land.Feedback()
+        start_time = self.get_clock().now()
+        
+        while rclpy.ok():
+            # Get current altitude
+            current_alt = 0.0
+            if self.current_pose is not None:
+                current_alt = self.current_pose.pose.position.z
+                
+            # Publish feedback
+            feedback.current_altitude_m = current_alt
+            goal_handle.publish_feedback(feedback)
+            
+            # Check if target altitude reached (within 0.2m tolerance)
+            if current_alt <= 0.3:
+                self.get_logger().info('Target altitude reached.')
+                goal_handle.succeed()
+                return Land.Result(success=True)
+            
+            # Check for timeout
+            elapsed = (self.get_clock().now() - start_time).nanoseconds / 1e9
+            if timeout > 0 and elapsed > timeout:
+                self.get_logger().info('Land timed out.')
+                goal_handle.abort()
+                return Land.Result(success=False)
+            
+            rclpy.spin_once(self, timeout_sec=0.1)
+        
+    def _mavros_land(self) -> bool:
+        """Command MAVROS to land."""
+        
+        if not self.land_client.wait_for_service(timeout_sec=5.0):
+            self.get_logger().error('Land service not available.')
+            return False
+
+        request = CommandTOL.Request()
+        request.altitude = 0.0
+        request.latitude = 0.0  # Use current location
+        request.longitude = 0.0  # Use current location
+        request.min_pitch = 0.0
+        request.yaw = 0.0
+        
+        future = self.land_client.call_async(request)
+        rclpy.spin_until_future_complete(self, future, timeout_sec=5.0)
+        
+        if future.result() is not None:
+            success = future.result().success
+            self.get_logger().info(f'MAVROS land command sent: {success}')
+            return success
+        
+        self.get_logger().error('Failed to call land service.')
+        return False
+    
+    
 def main(args=None):
     import rclpy
     rclpy.init(args=args)
