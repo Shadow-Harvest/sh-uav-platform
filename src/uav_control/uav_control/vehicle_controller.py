@@ -63,7 +63,7 @@ class VehicleController(LifecycleNode):
         self.setpoint_pub = self.create_publisher(
             PoseStamped,
             '/mavros/setpoint_position/local',
-            10
+            sensor_qos
         )
         
         # Initialize target to origin
