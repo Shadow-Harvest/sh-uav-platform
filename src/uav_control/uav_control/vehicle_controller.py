@@ -7,7 +7,6 @@ Responsibilities:
 - Action servers for Takeoff, Land, HoldPosition (future)
 """
 
-import time
 import rclpy
 
 from rclpy.lifecycle import LifecycleNode, LifecycleState, TransitionCallbackReturn
@@ -15,7 +14,7 @@ from rclpy.action import ActionServer
 from rclpy.action.server import ServerGoalHandle
 from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy
 from geometry_msgs.msg import PoseStamped
-from mavros_msgs.srv import CommandBool, CommandTOL, SetMode
+from mavros_msgs.srv import CommandBool, SetMode
 from uav_msgs.action import Takeoff
 
 
@@ -75,7 +74,6 @@ class VehicleController(LifecycleNode):
         # MAVROS service clients
         self.arm_client = self.create_client(CommandBool, '/mavros/cmd/arming')
         self.mode_client = self.create_client(SetMode, '/mavros/set_mode')
-        self.takeoff_client = self.create_client(CommandTOL, '/mavros/cmd/takeoff')
         
         # Takeoff action server
         self.takeoff_server = ActionServer(
@@ -141,6 +139,10 @@ class VehicleController(LifecycleNode):
         """Execute takeoff action."""
         self.get_logger().info('Takeoff action requested.')
         
+        if not self._is_takeoff_allowed():
+            goal_handle.abort()
+            return Takeoff.Result(success=False, message='Takeoff not allowed in current state.')
+        
         target_altitude = goal_handle.request.target_altitude_m
         timeout = goal_handle.request.timeout_sec
         
@@ -195,6 +197,13 @@ class VehicleController(LifecycleNode):
             
             rclpy.spin_once(self, timeout_sec=0.1)
 
+    def _is_takeoff_allowed(self) -> bool:
+        """Check if takeoff is allowed in current state."""
+        if not self.setpoint_timer:
+            self.get_logger().warning('Takeoff not allowed: Setpoint streaming not active.')
+            return False
+        return True
+    
     def _set_mode(self, mode: str) -> bool:
         """Set the vehicle mode via MAVROS."""
         if not self.mode_client.wait_for_service(timeout_sec=5.0):

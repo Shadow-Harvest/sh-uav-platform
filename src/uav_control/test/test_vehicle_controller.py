@@ -59,6 +59,32 @@ class TestTakeoffSetpointPublishing:
         assert isinstance(published_msg, PoseStamped), (
             "Published message must be of type PoseStamped"
         )
+        
+class TestTakeoffSequence:
+    def test_takeoff_fails_on_non_activated_node(self, node):
+        """Takeoff must fail if node is not activated."""
+        node.on_configure(MagicMock())
+        
+        node._set_mode = MagicMock(return_value=True)
+        node._arm_vehicle = MagicMock(return_value=True)
+        
+        goal_handle = MagicMock()
+        goal_handle.request.target_altitude_m = 5.0
+        goal_handle.request.timeout_sec = 0.2
+        
+        result = node._execute_takeoff(goal_handle)
+        
+        assert goal_handle.abort.call_count == 1, (
+            "Takeoff must abort if node is not activated"
+        )
+        
+        assert result.success is False, (
+            "Takeoff result must indicate failure if node is not activated"
+        )
+        
+        assert node._arm_vehicle.call_count == 0, (
+            "Takeoff must not attempt to arm vehicle if node is not activated"
+        )
 
 class TestTakeoffCallbackProcessing:
     """Test callback processing during takeoff."""
@@ -66,10 +92,10 @@ class TestTakeoffCallbackProcessing:
     def test_takeoff_loop_calls_spin_once(self, node):
         """Loop must call spin_once() to process pose callbacks."""
         node.on_configure(MagicMock())
+        node.on_activate(MagicMock())
         
         node._set_mode = MagicMock(return_value=True)
         node._arm_vehicle = MagicMock(return_value=True)
-        node._mavros_takeoff = MagicMock(return_value=True)
         
         goal_handle = MagicMock()
         goal_handle.request.target_altitude_m = 5.0
