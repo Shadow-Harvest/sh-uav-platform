@@ -2,9 +2,8 @@
 Vehicle Controller - Lifecycle node for UAV control.
 
 Responsibilities:
-- 20Hz setpoint streaming (keeps GUIDED mode alive)
 - Position/velocity command interface
-- Action servers for Takeoff, Land, HoldPosition (future)
+- Action servers for Takeoff, Land
 """
 
 import rclpy
@@ -173,15 +172,6 @@ class VehicleController(LifecycleNode):
         if not self._mavros_takeoff(target_altitude):
             goal_handle.abort()
             return Takeoff.Result(success=False, message='MAVROS takeoff command failed.')
-        
-        # Step 2: Set target altitude (keeping current x,y)
-        # current_x = 0.0
-        # current_y = 0.0
-        # if self.current_pose is not None:
-        #     current_x = self.current_pose.pose.position.x
-        #     current_y = self.current_pose.pose.position.y
-            
-        # self.set_target_position(current_x, current_y, target_altitude)
         
         # Step 4: Monitor altitude until reached or timeout
         feedback = Takeoff.Feedback()
