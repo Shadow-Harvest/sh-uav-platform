@@ -1,8 +1,23 @@
-# Autonomous UAV Platform: 16-Week Implementation Roadmap
+# Implementation Roadmap
 
-**Project:** ArUco Search & Approach Mission  
-**Estimated Total Hours:** 400-500 hours (25-30 hrs/week)  
-**Start Date:** _______________
+> **Pure task tracking document** - For architecture and design decisions, see [README.md](../README.md)
+
+**Project:** ArUco Search & Approach Mission
+**Timeline:** 16 weeks (400-500 hours at 25-30 hrs/week)
+**Start Date:** Week of 2025-11-25
+
+---
+
+## How to Use This Document
+
+- ✅ = Completed
+- 🚧 = In Progress
+- □ = Not Started
+
+This roadmap is a **living document** - update weekly with:
+- Actual progress vs planned
+- Lessons learned
+- Adjustments to timeline
 
 ---
 
@@ -19,7 +34,7 @@
 
 ---
 
-## Phase 1: Foundation (Weeks 1-3)
+## Phase 1: Foundation (Weeks 1-3) ✅ COMPLETE
 
 ### Week 1: Development Environment & SITL Validation
 
@@ -309,49 +324,49 @@
 
 ---
 
-### Week 3: Vehicle Controller (Takeoff/Land/Hold)
+### Week 3: Vehicle Controller (Takeoff/Land)
 
-**Goal:** Complete vehicle controller with takeoff, land, and position hold actions
+**Goal:** Complete vehicle controller with takeoff and land actions via MAVROS services
 
 #### Day 1-2: Vehicle Controller Node (10-12 hrs)
 
 ```
 □ Create vehicle_controller.py:
-  
+
   class VehicleController(LifecycleNode):
       def __init__(self):
           super().__init__('vehicle_controller')
-          
+
       def on_configure(self, state):
-          # Position setpoint publisher
+          # MAVROS service clients for flight phase commands
+          self.takeoff_client = self.create_client(
+              CommandTOL, '/mavros/cmd/takeoff')
+          self.land_client = self.create_client(
+              CommandTOL, '/mavros/cmd/land')
+
+          # Position setpoint publisher (for active movement only)
           self.setpoint_pub = self.create_publisher(
               PoseStamped, '/mavros/setpoint_position/local', 10)
-          
-          # Velocity setpoint publisher (for approach later)
+
+          # Velocity setpoint publisher (for approach maneuvers)
           self.vel_pub = self.create_publisher(
               TwistStamped, '/mavros/setpoint_velocity/cmd_vel', 10)
-          
-          # Timer for setpoint publishing (REQUIRED for offboard)
-          self.setpoint_timer = self.create_timer(0.05, self.publish_setpoint)
-          
-          # Current target
-          self.target_pose = PoseStamped()
-          self.control_mode = 'POSITION'  # or 'VELOCITY'
 
-□ Implement setpoint streaming:
-  # CRITICAL: Must publish setpoints at >2Hz for offboard mode
-  def publish_setpoint(self):
-      if self.control_mode == 'POSITION':
-          self.setpoint_pub.publish(self.target_pose)
-      elif self.control_mode == 'VELOCITY':
-          self.vel_pub.publish(self.target_velocity)
+          # Control mode flag
+          self.control_mode = 'IDLE'  # IDLE, POSITION, VELOCITY
 
-□ Test setpoint publishing:
-  ros2 topic hz /mavros/setpoint_position/local
-  # Should show ~20 Hz
+□ Understand ArduPilot GUIDED behavior:
+  # CRITICAL INSIGHT: ArduPilot holds position autonomously after NAV_TAKEOFF
+  # Position setpoints are ONLY needed for active movement
+  # No continuous streaming required to maintain hover
+
+□ Test MAVROS takeoff service:
+  ros2 service call /mavros/cmd/takeoff mavros_msgs/srv/CommandTOL \
+    "{altitude: 3.0}"
+  # Verify drone takes off and holds position automatically
 ```
 
-**Expected Output:** Controller node publishing setpoints at 20Hz
+**Expected Output:** Controller node with MAVROS service clients configured
 
 #### Day 3-4: Takeoff Action Server (10-12 hrs)
 
@@ -371,21 +386,23 @@
   float32 progress_percent
 
 □ Implement TakeoffActionServer:
-  
+
   class TakeoffActionServer:
       def execute_callback(self, goal_handle):
           target_alt = goal_handle.request.target_altitude
-          
+
           # Set mode to GUIDED
           self.set_mode('GUIDED')
-          
+
           # Arm if needed
           if not self.is_armed:
               self.arm()
-          
-          # Set target position (current x, y + target alt)
-          self.controller.target_pose.pose.position.z = target_alt
-          
+
+          # Call MAVROS takeoff service (NAV_TAKEOFF command)
+          if not self._mavros_takeoff(target_alt):
+              goal_handle.abort()
+              return Takeoff.Result(success=False, message="NAV_TAKEOFF failed")
+
           # Wait for altitude reached
           while not self.altitude_reached(target_alt):
               # Publish feedback
@@ -393,14 +410,15 @@
               feedback.current_altitude = self.current_alt
               feedback.progress_percent = (self.current_alt / target_alt) * 100
               goal_handle.publish_feedback(feedback)
-              
+
               # Check timeout
               if elapsed > goal_handle.request.timeout_sec:
                   goal_handle.abort()
                   return Takeoff.Result(success=False)
-              
+
               time.sleep(0.1)
-          
+
+          # After NAV_TAKEOFF completes, ArduPilot holds position autonomously
           goal_handle.succeed()
           return Takeoff.Result(success=True, final_altitude=self.current_alt)
 
@@ -411,7 +429,7 @@
 
 **Expected Output:** Drone takes off to 3m via action call
 
-#### Day 5-6: Land & Hold Actions (10-12 hrs)
+#### Day 5-6: Land Action (10-12 hrs)
 
 ```
 □ Define Land.action:
@@ -427,27 +445,28 @@
   uint8 landing_state  # DESCENDING, GROUND_CONTACT, DISARMED
 
 □ Implement LandActionServer:
-  - Send LAND mode command
+  - Call MAVROS land service (NAV_LAND command)
   - Monitor altitude decrease
   - Detect ground contact (altitude stable near 0)
   - Optionally disarm after landing
 
-□ Implement HoldPositionAction:
-  - Capture current position
-  - Hold for specified duration
-  - Return success after duration
+□ Note: HoldPosition action is NOT needed
+  - ArduPilot automatically holds position in GUIDED mode
+  - After takeoff, drone maintains position without continuous setpoints
+  - Only need Wait/Sleep behavior for timed holds during missions
 
 □ Integration tests for each action
 
 □ End-to-end test script:
   async def test_full_cycle():
       await takeoff(3.0)
-      await hold(5.0)
+      # Drone holds autonomously for 5 seconds
+      await asyncio.sleep(5.0)
       await land()
       # Verify drone on ground
 ```
 
-**Expected Output:** Complete takeoff → hold → land cycle works
+**Expected Output:** Complete takeoff → autonomous hold → land cycle works
 
 #### Day 7: Phase 1 Integration & Review (4-6 hrs)
 
@@ -459,8 +478,9 @@
 □ Run full integration test:
   - Start SITL
   - Launch all nodes
-  - Execute takeoff → hold → land
+  - Execute takeoff → wait (autonomous hold) → land
   - Verify clean state transitions
+  - Confirm ArduPilot maintains position without setpoints
 
 □ Performance check:
   - CPU usage in container
@@ -476,18 +496,19 @@
 ```
 
 **Phase 1 Deliverables:**
-- [ ] Docker SITL environment working
-- [ ] MAVROS communication verified
-- [ ] Vehicle FSM implemented and tested
-- [ ] Vehicle Controller with setpoint streaming
-- [ ] Takeoff, Land, Hold actions working
-- [ ] Full cycle test passes in SITL
+- ✅ Docker SITL environment working
+- ✅ MAVROS communication verified
+- ✅ Vehicle FSM implemented and tested
+- ✅ Vehicle Controller with MAVROS service clients
+- ✅ Takeoff and Land actions working via NAV_TAKEOFF/NAV_LAND
+- ✅ ArduPilot autonomous hold behavior verified
+- ✅ Full cycle test passes in SITL
 
 **Phase 1 Total Hours:** 100-120
 
 ---
 
-## Phase 2: Perception Core (Weeks 4-6)
+## Phase 2: Perception Core (Weeks 4-6) 🚧 IN PROGRESS
 
 ### Week 4: Camera Pipeline in Simulation
 
@@ -1041,9 +1062,9 @@
   class LandBehavior(RosActionBehavior):
       # Similar pattern
 
-□ Implement HoldBehavior:
-  class HoldBehavior(RosActionBehavior):
-      # Hold position for duration
+□ Implement WaitBehavior:
+  class WaitBehavior(py_trees.behaviour.Behaviour):
+      # Simple time-based wait (ArduPilot holds autonomously)
 
 □ Implement conditions:
   class IsArmed(RosCondition):
@@ -1057,6 +1078,7 @@
 □ Test each behavior individually:
   - TakeoffBehavior takes off and returns SUCCESS
   - LandBehavior lands and returns SUCCESS
+  - WaitBehavior waits for duration (drone holds autonomously)
   - IsArmed returns SUCCESS when armed
 ```
 
@@ -1069,7 +1091,7 @@
   root = py_trees.composites.Sequence("simple_mission", memory=True)
   root.add_children([
       TakeoffBehavior("takeoff", altitude=3.0),
-      HoldBehavior("hold", duration=5.0),
+      WaitBehavior("wait", duration=5.0),
       LandBehavior("land")
   ])
 
@@ -1085,7 +1107,7 @@
 **Week 7 Deliverables:**
 - [ ] py_trees integrated
 - [ ] ROS2 behavior base classes
-- [ ] Takeoff, Land, Hold behaviors
+- [ ] Takeoff, Land, Wait behaviors
 - [ ] Simple sequence mission works
 
 **Estimated Hours:** 35-40
@@ -1213,7 +1235,7 @@
   root = Sequence([
       TakeoffBehavior(alt=3.0),
       search_subtree,
-      HoldBehavior(duration=3.0),  # Celebrate finding target
+      WaitBehavior(duration=3.0),  # Celebrate finding target (drone holds autonomously)
       LandBehavior()
   ])
 ```
@@ -1321,13 +1343,13 @@
               yaw_step_deg=30, pause_sec=2.0, max_rotations=12)
       ])
       
-      # Celebrate (hold when found)
-      hold = HoldBehavior("hold_on_target", duration=5.0)
+      # Wait at target (ArduPilot holds position autonomously)
+      wait = WaitBehavior("wait_at_target", duration=5.0)
       
       # Land
       land = LandBehavior("land")
       
-      root.add_children([arm_check, takeoff, search, hold, land])
+      root.add_children([arm_check, takeoff, search, wait, land])
       return root
 
 □ Test complete mission:
@@ -1631,13 +1653,13 @@
           child=ApproachTargetBehavior("approach", target_distance=1.0),
           duration=60.0)
       
-      # Hold at target
-      hold = HoldBehavior("hold", duration=10.0)
+      # Wait at target (ArduPilot holds position autonomously)
+      wait = WaitBehavior("wait", duration=10.0)
       
       # Land
       land = LandBehavior("land")
       
-      root.add_children([precheck, takeoff, search, approach, hold, land])
+      root.add_children([precheck, takeoff, search, approach, wait, land])
       
       # Wrap in recovery
       mission_with_recovery = Selector("mission_safe", memory=True)

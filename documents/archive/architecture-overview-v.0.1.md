@@ -28,11 +28,38 @@ Enterprise-grade autonomous UAV platform built on ROS2, designed for defense/aer
 |--------|---------------------------|-------------------|
 | **Use For** | Vehicle lifecycle, safety states, mode transitions | Mission logic, task sequencing, reactive behaviors |
 | **Characteristics** | Deterministic, verifiable, linear | Composable, hierarchical, reactive |
-| **Examples** | DISARMED→ARMED→FLYING→LANDED | Search→Detect→Approach→Hold |
+| **Examples** | DISARMED→ARMED→FLYING→LANDED | Search→Detect→Approach→Land |
 | **Verification** | Formal methods possible | Runtime monitoring |
 | **Complexity** | O(states × transitions) | O(tree depth) |
 
 **Architecture Decision**: FSM manages WHAT the vehicle CAN do (safety envelope). BT decides WHAT it SHOULD do (mission logic).
+
+### 1.3 ArduPilot GUIDED Mode Behavior
+
+**Critical Understanding**: ArduPilot operates with a two-layer control model:
+
+```
+┌─────────────────────────────────────────────┐
+│   FLIGHT PHASE CONTROL (Native Commands)   │
+│   - Takeoff (NAV_TAKEOFF)                   │
+│   - Land (NAV_LAND)                         │
+│   - ArduPilot handles these INTERNALLY      │
+│   - After takeoff: GUIDED Loiter (auto-hold)│
+└─────────────────────────────────────────────┘
+                    ↓
+┌─────────────────────────────────────────────┐
+│   POSITION CONTROL (Setpoint Streaming)     │
+│   - ONLY for active movement while airborne │
+│   - NOT required to maintain position       │
+│   - ArduPilot holds autonomously in GUIDED  │
+└─────────────────────────────────────────────┘
+```
+
+**Key Principles**:
+- **NAV_TAKEOFF required**: Position setpoints alone cannot initiate takeoff
+- **Autonomous hold**: After NAV_TAKEOFF completes, ArduPilot enters GUIDED Loiter and holds position without continuous setpoints
+- **Failsafe behavior**: Only triggers on GCS heartbeat loss, NOT on setpoint loss
+- **Setpoints for movement**: Position/velocity setpoints only needed when actively moving to new positions
 
 ---
 
@@ -74,9 +101,11 @@ Enterprise-grade autonomous UAV platform built on ROS2, designed for defense/aer
 │                       CONTROL LAYER                                     │
 │  ┌──────────────────────────────┐  ┌────────────────────────────────┐ │
 │  │     Vehicle Controller       │  │      Safety Monitor            │ │
-│  │  • Setpoint translation      │  │  • Geofence enforcement        │ │
-│  │  • Velocity/Position modes   │  │  • Battery watchdog            │ │
-│  │  • Command rate limiting     │  │  • Failsafe triggers           │ │
+│  │  • Flight phase commands     │  │  • Geofence enforcement        │ │
+│  │  •   (Takeoff/Land via       │  │  • Battery watchdog            │ │
+│  │  •    MAVROS services)       │  │  • Failsafe triggers           │ │
+│  │  • Position/Velocity setpts  │  │  • State monitoring            │ │
+│  │  •   (only for movement)     │  │                                │ │
 │  └──────────────────────────────┘  └────────────────────────────────┘ │
 ├─────────────────────────────────────────────────────────────────────────┤
 │                    VEHICLE STATE MACHINE                                │
@@ -293,13 +322,13 @@ public:
                           │ Sequence  │
                           └─────┬─────┘
                                 │
-        ┌───────────┬───────────┼───────────┬───────────┐
-        │           │           │           │           │
-        ▼           ▼           ▼           ▼           ▼
-   ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐
-   │ Takeoff │ │ Search  │ │Approach │ │  Hold   │ │  Land   │
-   │ Action  │ │Fallback │ │ Action  │ │ Action  │ │ Action  │
-   └─────────┘ └────┬────┘ └─────────┘ └─────────┘ └─────────┘
+        ┌───────────┬───────────┼───────────┐
+        │           │           │           │
+        ▼           ▼           ▼           ▼
+   ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐
+   │ Takeoff │ │ Search  │ │Approach │ │  Land   │
+   │ Action  │ │Fallback │ │ Action  │ │ Action  │
+   └─────────┘ └────┬────┘ └─────────┘ └─────────┘
                     │
         ┌───────────▼───────────┐
         │       Fallback        │
@@ -335,34 +364,34 @@ public:
 <root main_tree_to_execute="MainTree">
   <BehaviorTree ID="MainTree">
     <Sequence name="aruco_search_approach">
-      
+
       <!-- Pre-conditions -->
       <Condition ID="IsArmed"/>
-      
+
       <!-- Takeoff to search altitude -->
       <Action ID="Takeoff" altitude="3.0" timeout_sec="30"/>
-      
+
       <!-- Search Pattern with Fallback -->
       <Fallback name="search_fallback">
         <Condition ID="TargetDetected" target_class="aruco"/>
-        <Action ID="RotateSearch" 
-                yaw_step_deg="30" 
+        <Action ID="RotateSearch"
+                yaw_step_deg="30"
                 pause_sec="2.0"
                 max_rotations="12"/>
       </Fallback>
-      
+
       <!-- Approach Target -->
       <Action ID="ApproachTarget"
               target_distance_m="0.5"
               approach_speed="0.3"
               timeout_sec="60"/>
-      
-      <!-- Hold Position -->
-      <Action ID="HoldPosition" duration_sec="10"/>
-      
+
+      <!-- Wait at Target (ArduPilot holds position autonomously) -->
+      <Action ID="Wait" duration_sec="10"/>
+
       <!-- Land -->
       <Action ID="Land" timeout_sec="30"/>
-      
+
     </Sequence>
   </BehaviorTree>
 </root>
@@ -374,22 +403,34 @@ public:
 # Behavior tree nodes map directly to ROS2 actions/services
 
 class TakeoffAction(py_trees_ros.actions.ActionClient):
-    """Calls /vehicle/takeoff action server"""
-    
+    """
+    Calls /mavros/cmd/takeoff service (NAV_TAKEOFF command).
+    After completion, ArduPilot automatically holds position in GUIDED Loiter mode.
+    """
+
 class RotateSearchAction(py_trees.behaviour.Behaviour):
     """
     Rotates vehicle incrementally until target detected.
     - Subscribes: /detection/targets
-    - Publishes: /control/setpoint (yaw commands)
+    - Commands: Yaw changes via vehicle controller
     - Blackboard: writes detected_target when found
+    Note: ArduPilot holds altitude autonomously during rotation
     """
-    
+
 class ApproachTargetAction(py_trees.behaviour.Behaviour):
     """
     Visual servoing approach to target.
     - Reads: detected_target from blackboard
     - Implements: proportional approach controller
     - Stops at: target_distance_m
+    - Uses: Position/velocity setpoints for active movement
+    """
+
+class WaitAction(py_trees.behaviour.Behaviour):
+    """
+    Simple time-based wait.
+    Vehicle holds position autonomously via ArduPilot GUIDED Loiter.
+    No active setpoint streaming required.
     """
 ```
 
