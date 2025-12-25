@@ -2,9 +2,8 @@
 Vehicle Controller - Lifecycle node for UAV control.
 
 Responsibilities:
-- 20Hz setpoint streaming (keeps GUIDED mode alive)
 - Position/velocity command interface
-- Action servers for Takeoff, Land, HoldPosition (future)
+- Action servers for Takeoff, Land
 """
 
 import rclpy
@@ -31,7 +30,7 @@ class VehicleController(LifecycleNode):
         # Target state
         self.target_pose = None
         
-        # Pulishers
+        # Publishers
         self.setpoint_pub = None
         
         # Subscribers
@@ -109,15 +108,15 @@ class VehicleController(LifecycleNode):
         return TransitionCallbackReturn.SUCCESS
     
     def on_deactivate(self, state: LifecycleState) -> TransitionCallbackReturn:
-        """Deactivate publishers and stop setpoint timer."""
+        """Deactivate node."""
         self.get_logger().info('Deactivating VehicleController...')
         
         # Stop the timer
-        if self.setpoint_timer is not None:
-            self.setpoint_timer.cancel()
-            self.setpoint_timer = None
+        # if self.setpoint_timer is not None:
+        #     self.setpoint_timer.cancel()
+        #     self.setpoint_timer = None
         
-        self.get_logger().info('Setpoint streaming stopped.')
+        # self.get_logger().info('Setpoint streaming stopped.')
         return TransitionCallbackReturn.SUCCESS
     
     def on_cleanup(self, state: LifecycleState) -> TransitionCallbackReturn:
@@ -174,15 +173,6 @@ class VehicleController(LifecycleNode):
             goal_handle.abort()
             return Takeoff.Result(success=False, message='MAVROS takeoff command failed.')
         
-        # Step 2: Set target altitude (keeping current x,y)
-        # current_x = 0.0
-        # current_y = 0.0
-        # if self.current_pose is not None:
-        #     current_x = self.current_pose.pose.position.x
-        #     current_y = self.current_pose.pose.position.y
-            
-        # self.set_target_position(current_x, current_y, target_altitude)
-        
         # Step 4: Monitor altitude until reached or timeout
         feedback = Takeoff.Feedback()
         start_time = self.get_clock().now()
@@ -215,9 +205,7 @@ class VehicleController(LifecycleNode):
 
     def _is_takeoff_allowed(self) -> bool:
         """Check if takeoff is allowed in current state."""
-        if self.setpoint_timer:
-            self.get_logger().warning('Takeoff not allowed: Setpoint streaming is active.')
-            return False
+        # To be implemented after we have move to position functionality
         return True
     
     def _mavros_takeoff(self, altitude: float) -> bool:
