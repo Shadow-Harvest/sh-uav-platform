@@ -1,0 +1,43 @@
+{
+  "name": "UAV Development Container",
+
+  // PLATFORM SELECTION: Uncomment the line for your platform
+  "dockerComposeFile": [
+    "../docker/compose.yml",
+    "../docker/compose.mac.yml"      // macOS (software rendering via XQuartz)
+    // "../docker/compose.gpu.yml"   // Windows/Linux (GPU acceleration)
+  ],
+
+  "service": "dev",
+  "workspaceFolder": "/ws",
+  
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "ms-iot.vscode-ros",
+        "ms-azuretools.vscode-docker",
+        "charliermarsh.ruff"
+      ],
+      "settings": {
+        "python.defaultInterpreterPath": "/usr/bin/python3",
+        "python.analysis.extraPaths": [
+          "/opt/ros/humble/lib/python3.10/site-packages",
+          "/ws/install/uav_msgs/lib/python3.10/site-packages",
+          "/ws/install/uav_control/lib/python3.10/site-packages"
+        ],
+        "python.linting.enabled": true,
+        "python.linting.ruffEnabled": true,
+        "python.formatting.provider": "black",
+        "files.watcherExclude": {
+          "**/build/**": true,
+          "**/install/**": true,
+          "**/log/**": true
+        }
+      }
+    }
+  },
+
+  "postStartCommand": "source /opt/ros/humble/setup.bash && source /ws/install/setup.bash 2>/dev/null || true"
+}
