@@ -99,9 +99,12 @@ ENV GAZEBO_PLUGIN_PATH="/usr/lib/x86_64-linux-gnu/gazebo-11/plugins:${ARDUPILOT_
 WORKDIR /ws
 RUN mkdir -p src
 
-# Source ROS2 on bash startup
-RUN echo "source /opt/ros/humble/setup.bash" >> ~/.bashrc
-RUN echo "source /ws/install/setup.bash 2>/dev/null || true" >> ~/.bashrc
+# Source ROS2 and Gazebo on bash startup
+RUN echo "source /opt/ros/humble/setup.bash" >> ~/.bashrc \
+    && echo "source /ws/install/setup.bash 2>/dev/null || true" >> ~/.bashrc \
+    && echo "source /usr/share/gazebo/setup.bash" >> ~/.bashrc \
+    && echo "export GAZEBO_MODEL_PATH=${ARDUPILOT_GAZEBO_HOME}/models:\${GAZEBO_MODEL_PATH}" >> ~/.bashrc \
+    && echo "export GAZEBO_RESOURCE_PATH=${ARDUPILOT_GAZEBO_HOME}/worlds:\${GAZEBO_RESOURCE_PATH}" >> ~/.bashrc
 
 # Default command
 CMD ["/bin/bash"]
