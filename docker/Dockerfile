@@ -81,6 +81,20 @@ RUN git clone --depth 1 --recurse-submodules https://github.com/ArduPilot/ardupi
 # Add ArduPilot to PATH
 ENV PATH="${ARDUPILOT_HOME}/Tools/autotest:${PATH}"
 
+# Clone and build ardupilot_gazebo plugin
+ENV ARDUPILOT_GAZEBO_HOME=/opt/ardupilot_gazebo
+RUN git clone --depth 1 https://github.com/ArduPilot/ardupilot_gazebo.git ${ARDUPILOT_GAZEBO_HOME} \
+    && cd ${ARDUPILOT_GAZEBO_HOME} \
+    && mkdir build && cd build \
+    && cmake .. -DCMAKE_BUILD_TYPE=Release \
+    && make -j$(nproc) \
+    && make install
+
+# Set up Gazebo environment for ArduPilot integration
+ENV GAZEBO_MODEL_PATH="${ARDUPILOT_GAZEBO_HOME}/models:${GAZEBO_MODEL_PATH}"
+ENV GAZEBO_RESOURCE_PATH="${ARDUPILOT_GAZEBO_HOME}/worlds:${GAZEBO_RESOURCE_PATH}"
+ENV GAZEBO_PLUGIN_PATH="/usr/lib/x86_64-linux-gnu/gazebo-11/plugins:${ARDUPILOT_GAZEBO_HOME}/build:${GAZEBO_PLUGIN_PATH}"
+
 # Setup workspace
 WORKDIR /ws
 RUN mkdir -p src
