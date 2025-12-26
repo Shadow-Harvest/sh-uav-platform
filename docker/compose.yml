@@ -6,13 +6,9 @@ services:
     image: sh_uav_platform:latest
     container_name: sh_uav_platform-dev
     
-    # Mount source code and build artifacts
+    # Mount entire project workspace
     volumes:
-      - ../src:/ws/src:rw
-      - ../build:/ws/build:rw
-      - ../install:/ws/install:rw
-      - ../log:/ws/log:rw
-      - ../scripts:/ws/scripts:rw
+      - ..:/ws:rw
     
     working_dir: /ws
     

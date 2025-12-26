@@ -10,6 +10,8 @@
 
   "service": "dev",
   "workspaceFolder": "/ws",
+
+  "overrideCommand": false,
   
   "customizations": {
     "vscode": {
@@ -39,5 +41,5 @@
     }
   },
 
-  "postStartCommand": "source /opt/ros/humble/setup.bash && source /ws/install/setup.bash 2>/dev/null || true"
+  "postStartCommand": "/bin/bash /ws/.devcontainer/post-start.sh"
 }
