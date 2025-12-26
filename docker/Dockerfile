@@ -38,6 +38,15 @@ RUN apt-get update && apt-get install -y \
     mesa-utils \
     # For headless testing
     xvfb \
+    # ArduPilot SITL dependencies
+    python3-dev \
+    python3-opencv \
+    python3-wxgtk4.0 \
+    python3-matplotlib \
+    python3-lxml \
+    python3-pygame \
+    libxml2-dev \
+    libxslt1-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Python dependencies
