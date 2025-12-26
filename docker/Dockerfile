@@ -57,7 +57,16 @@ RUN pip3 install --no-cache-dir \
     pytest \
     pytest-cov \
     ruff \
-    black
+    black \
+    # ArduPilot Python dependencies
+    pymavlink \
+    MAVProxy \
+    pexpect \
+    future \
+    empy==3.3.4 \
+    pyserial \
+    dronecan \
+    flake8
 
 # Install MAVROS geographiclib datasets
 RUN /opt/ros/humble/lib/mavros/install_geographiclib_datasets.sh
