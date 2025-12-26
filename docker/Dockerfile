@@ -71,6 +71,16 @@ RUN pip3 install --no-cache-dir \
 # Install MAVROS geographiclib datasets
 RUN /opt/ros/humble/lib/mavros/install_geographiclib_datasets.sh
 
+# Clone and build ArduPilot SITL
+ENV ARDUPILOT_HOME=/opt/ardupilot
+RUN git clone --depth 1 --recurse-submodules https://github.com/ArduPilot/ardupilot.git ${ARDUPILOT_HOME} \
+    && cd ${ARDUPILOT_HOME} \
+    && ./waf configure --board sitl \
+    && ./waf copter
+
+# Add ArduPilot to PATH
+ENV PATH="${ARDUPILOT_HOME}/Tools/autotest:${PATH}"
+
 # Setup workspace
 WORKDIR /ws
 RUN mkdir -p src
