@@ -14,9 +14,6 @@ RUN apt-get update && apt-get install -y \
     python3-pip \
     python3-colcon-common-extensions \
     python3-rosdep \
-    # Gazebo and ROS integration
-    ros-humble-gazebo-ros-pkgs \
-    ros-humble-gazebo-ros2-control \
     # MAVROS
     ros-humble-mavros \
     ros-humble-mavros-extras \
@@ -71,6 +68,31 @@ RUN pip3 install --no-cache-dir \
 # Install MAVROS geographiclib datasets
 RUN /opt/ros/humble/lib/mavros/install_geographiclib_datasets.sh
 
+# Install Gazebo Harmonic (modern Gazebo) with all dependencies
+RUN wget https://packages.osrfoundation.org/gazebo.gpg -O /usr/share/keyrings/pkgs-osrf-archive-keyring.gpg \
+    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/pkgs-osrf-archive-keyring.gpg] http://packages.osrfoundation.org/gazebo/ubuntu-stable $(lsb_release -cs) main" | tee /etc/apt/sources.list.d/gazebo-stable.list > /dev/null \
+    && apt-get update \
+    && apt-get install -y \
+    gz-harmonic \
+    libgz-sim8-dev \
+    rapidjson-dev \
+    libopencv-dev \
+    libgstreamer1.0-dev \
+    libgstreamer-plugins-base1.0-dev \
+    gstreamer1.0-plugins-bad \
+    gstreamer1.0-libav \
+    gstreamer1.0-gl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install ROS2-Gazebo bridge (ros_gz)
+RUN apt-get update \
+    && apt-get install -y \
+    ros-humble-ros-gz-bridge \
+    ros-humble-ros-gz-sim \
+    ros-humble-ros-gz-image \
+    && rm -rf /var/lib/apt/lists/*
+
+
 # Clone and build ArduPilot SITL
 ENV ARDUPILOT_HOME=/opt/ardupilot
 RUN git clone --depth 1 --recurse-submodules https://github.com/ArduPilot/ardupilot.git ${ARDUPILOT_HOME} \
@@ -90,10 +112,9 @@ RUN git clone --depth 1 https://github.com/ArduPilot/ardupilot_gazebo.git ${ARDU
     && make -j$(nproc) \
     && make install
 
-# Set up Gazebo environment for ArduPilot integration
-ENV GAZEBO_MODEL_PATH="${ARDUPILOT_GAZEBO_HOME}/models:${GAZEBO_MODEL_PATH}"
-ENV GAZEBO_RESOURCE_PATH="${ARDUPILOT_GAZEBO_HOME}/worlds:${GAZEBO_RESOURCE_PATH}"
-ENV GAZEBO_PLUGIN_PATH="/usr/lib/x86_64-linux-gnu/gazebo-11/plugins:${ARDUPILOT_GAZEBO_HOME}/build:${GAZEBO_PLUGIN_PATH}"
+# Set up Gazebo Harmonic environment for ArduPilot integration
+ENV GZ_SIM_RESOURCE_PATH="${ARDUPILOT_GAZEBO_HOME}/models:${ARDUPILOT_GAZEBO_HOME}/worlds"
+ENV GZ_SIM_SYSTEM_PLUGIN_PATH="${ARDUPILOT_GAZEBO_HOME}/build"
 
 # Setup workspace
 WORKDIR /ws
@@ -102,9 +123,8 @@ RUN mkdir -p src
 # Source ROS2 and Gazebo on bash startup
 RUN echo "source /opt/ros/humble/setup.bash" >> ~/.bashrc \
     && echo "source /ws/install/setup.bash 2>/dev/null || true" >> ~/.bashrc \
-    && echo "source /usr/share/gazebo/setup.bash" >> ~/.bashrc \
-    && echo "export GAZEBO_MODEL_PATH=${ARDUPILOT_GAZEBO_HOME}/models:\${GAZEBO_MODEL_PATH}" >> ~/.bashrc \
-    && echo "export GAZEBO_RESOURCE_PATH=${ARDUPILOT_GAZEBO_HOME}/worlds:\${GAZEBO_RESOURCE_PATH}" >> ~/.bashrc
+    && echo "export GZ_SIM_RESOURCE_PATH=${ARDUPILOT_GAZEBO_HOME}/models:${ARDUPILOT_GAZEBO_HOME}/worlds" >> ~/.bashrc \
+    && echo "export GZ_SIM_SYSTEM_PLUGIN_PATH=${ARDUPILOT_GAZEBO_HOME}/build" >> ~/.bashrc
 
 # Default command
 CMD ["/bin/bash"]
