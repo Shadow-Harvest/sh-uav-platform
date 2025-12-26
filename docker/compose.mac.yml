@@ -1,11 +1,20 @@
-# Mac-specific overrides (no GPU, no GUI)
+# Mac-specific overrides (X11 display via XQuartz, software rendering)
 services:
   dev:
     # On Mac, network_mode: host doesn't work the same
     # Override to use bridge network
     network_mode: bridge
     
-    # Expose ports for ROS2 if needed later
+    # Expose ports for MAVLink communication
     ports:
       - "14550:14550/udp"  # MAVLink
       - "14540:14540/udp"  # MAVLink
+    
+    # X11 display forwarding via XQuartz
+    environment:
+      - DISPLAY=host.docker.internal:0
+      - LIBGL_ALWAYS_SOFTWARE=1  # Force software rendering (no GPU on Mac)
+    
+    # Allow Docker to connect to host for X11
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
