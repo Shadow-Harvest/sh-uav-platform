@@ -150,6 +150,63 @@ Position Control (Setpoint streaming)
 
 ---
 
+## Learning Logs
+
+Location: `documents/learning-logs/`
+
+### Purpose
+- Track learning progress over time
+- Document discoveries, gotchas, and solutions
+- Create reference material for future sessions
+- Avoid re-learning the same concepts
+- Build a personal knowledge base
+
+### When to Create a Log
+- End of each study session (brief summary)
+- After significant discoveries or breakthroughs
+- When solving non-trivial bugs (document root cause)
+- When learning a new concept that required research
+
+### Naming Convention
+```
+YYYY-MM-DD-topic.md
+```
+Examples:
+- `2025-12-25-ardupilot-takeoff-land-fix.md`
+- `2025-12-08-vehicle-fsm.md`
+
+### Log Structure
+```markdown
+# Topic Title
+
+**Date:** YYYY-MM-DD
+**Session:** (optional) Link to study plan session
+
+## What I Learned
+- Key concept 1
+- Key concept 2
+
+## Key Commands / Code Snippets
+(Commands that worked, patterns to reuse)
+
+## Gotchas / Mistakes Made
+(What went wrong and why)
+
+## Resources
+(Links to docs, Stack Overflow, tutorials used)
+
+## Questions for Next Time
+(Unresolved questions to explore later)
+```
+
+### Claude's Role with Logs
+- Remind user to log at end of session
+- Help identify what's worth logging
+- Review logs for accuracy if requested
+- Reference previous logs when relevant to current work
+
+---
+
 ## Study Plan Location
 
 See `documents/study-plans/` for session-by-session curriculum.
@@ -165,4 +222,16 @@ Current phase and progress tracked in individual session files.
 3. Read the specific session plan
 4. Review any prerequisite code
 5. Begin with concept check
+```
+
+---
+
+## Quick Reference: Session End
+
+```
+1. Verify all tests pass
+2. Commit and push changes
+3. Create/update learning log
+4. Mark session complete in study plan
+5. Note any blockers for next session
 ```
