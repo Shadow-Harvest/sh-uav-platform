@@ -1,4 +1,4 @@
-.PHONY: help dev build test pytest clean docker-build docker-clean
+.PHONY: help dev build test pytest clean docker-build docker-clean sim-help
 
 # Detect OS for correct compose file
 UNAME := $(shell uname)
@@ -35,24 +35,40 @@ docker-clean: ## Remove Docker image and containers
 clean: ## Clean build artifacts
 	rm -rf build/ install/ log/
 
-## Simulation (run these inside dev container - use 'make dev' first)
+## Simulation (Hybrid Setup: Native Gazebo + Docker SITL)
 sim-help: ## Show simulation startup instructions
 	@echo ""
-	@echo "To run the simulation, you need 3 terminals:"
+	@echo "╔══════════════════════════════════════════════════════════════════╗"
+	@echo "║           HYBRID SIMULATION SETUP (Mac + Docker)                  ║"
+	@echo "╠══════════════════════════════════════════════════════════════════╣"
+	@echo "║  Gazebo runs NATIVELY on Mac (Metal GPU)                         ║"
+	@echo "║  SITL + MAVROS + ROS2 run in Docker                              ║"
+	@echo "╚══════════════════════════════════════════════════════════════════╝"
 	@echo ""
-	@echo "1. Start the dev container:"
-	@echo "   make dev"
+	@echo "STEP 1: Start Gazebo on Mac (2 terminals)"
+	@echo "────────────────────────────────────────────"
+	@echo "  Terminal 1 (server):"
+	@echo "    gz-server ~/Robotics/ardupilot_gazebo/worlds/iris_runway.sdf"
 	@echo ""
-	@echo "Inside the container, open 3 terminals and run:"
+	@echo "  Terminal 2 (GUI):"
+	@echo "    gz-gui"
 	@echo ""
-	@echo "Terminal 1 - Gazebo:"
-	@echo "   gz sim -v4 /opt/ardupilot_gazebo/worlds/iris_runway.sdf"
+	@echo "STEP 2: Start Docker container"
+	@echo "────────────────────────────────────────────"
+	@echo "  Terminal 3:"
+	@echo "    make dev"
 	@echo ""
-	@echo "Terminal 2 - ArduPilot SITL (wait for Gazebo to load):"
-	@echo "   cd /opt/ardupilot/ArduCopter && sim_vehicle.py -v ArduCopter -f gazebo-iris --model JSON --map --console"
+	@echo "STEP 3: Inside Docker, start SITL"
+	@echo "────────────────────────────────────────────"
+	@echo "  (in Docker shell):"
+	@echo "    sim_vehicle.py -v ArduCopter -f gazebo-iris --model JSON \\"
+	@echo "      --sim-address host.docker.internal --console"
 	@echo ""
-	@echo "Terminal 3 - MAVROS (wait for SITL to connect):"
-	@echo "   ros2 launch mavros apm.launch fcu_url:=udp://:14550@localhost:14555"
+	@echo "STEP 4: Inside Docker, start MAVROS (new terminal)"
+	@echo "────────────────────────────────────────────"
+	@echo "  docker exec -it sh_uav_platform-dev bash"
+	@echo "  source /opt/ros/humble/setup.bash && source /ws/install/setup.bash"
+	@echo "  ros2 launch mavros apm.launch fcu_url:=udp://:14550@localhost:14555"
 	@echo ""
-	@echo "Or use VS Code Dev Containers for integrated terminal experience."
+	@echo "NOTE: If Gazebo aliases don't work, run: source ~/.zshrc"
 	@echo ""
