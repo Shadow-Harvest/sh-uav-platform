@@ -4,10 +4,6 @@ FROM osrf/ros:humble-desktop-full
 # Avoid prompts during package installation
 ENV DEBIAN_FRONTEND=noninteractive
 
-# GPU support (used when available, ignored otherwise)
-ENV NVIDIA_VISIBLE_DEVICES=all
-ENV NVIDIA_DRIVER_CAPABILITIES=graphics,utility,compute
-
 # Install core dependencies
 RUN apt-get update && apt-get install -y \
     # Build tools
@@ -32,9 +28,6 @@ RUN apt-get update && apt-get install -y \
     curl \
     vim \
     htop \
-    mesa-utils \
-    # For headless testing
-    xvfb \
     # ArduPilot SITL dependencies
     python3-dev \
     python3-opencv \
@@ -44,6 +37,9 @@ RUN apt-get update && apt-get install -y \
     python3-pygame \
     libxml2-dev \
     libxslt1-dev \
+    # Network debugging
+    netcat-openbsd \
+    iputils-ping \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Python dependencies
@@ -55,6 +51,7 @@ RUN pip3 install --no-cache-dir \
     pytest-cov \
     ruff \
     black \
+    flake8 \
     # ArduPilot Python dependencies
     pymavlink \
     MAVProxy \
@@ -62,36 +59,10 @@ RUN pip3 install --no-cache-dir \
     future \
     empy==3.3.4 \
     pyserial \
-    dronecan \
-    flake8
+    dronecan
 
 # Install MAVROS geographiclib datasets
 RUN /opt/ros/humble/lib/mavros/install_geographiclib_datasets.sh
-
-# Install Gazebo Harmonic (modern Gazebo) with all dependencies
-RUN wget https://packages.osrfoundation.org/gazebo.gpg -O /usr/share/keyrings/pkgs-osrf-archive-keyring.gpg \
-    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/pkgs-osrf-archive-keyring.gpg] http://packages.osrfoundation.org/gazebo/ubuntu-stable $(lsb_release -cs) main" | tee /etc/apt/sources.list.d/gazebo-stable.list > /dev/null \
-    && apt-get update \
-    && apt-get install -y \
-    gz-harmonic \
-    libgz-sim8-dev \
-    rapidjson-dev \
-    libopencv-dev \
-    libgstreamer1.0-dev \
-    libgstreamer-plugins-base1.0-dev \
-    gstreamer1.0-plugins-bad \
-    gstreamer1.0-libav \
-    gstreamer1.0-gl \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install ROS2-Gazebo bridge (ros_gz)
-RUN apt-get update \
-    && apt-get install -y \
-    ros-humble-ros-gz-bridge \
-    ros-humble-ros-gz-sim \
-    ros-humble-ros-gz-image \
-    && rm -rf /var/lib/apt/lists/*
-
 
 # Clone and build ArduPilot SITL
 ENV ARDUPILOT_HOME=/opt/ardupilot
@@ -103,28 +74,13 @@ RUN git clone --depth 1 --recurse-submodules https://github.com/ArduPilot/ardupi
 # Add ArduPilot to PATH
 ENV PATH="${ARDUPILOT_HOME}/Tools/autotest:${PATH}"
 
-# Clone and build ardupilot_gazebo plugin
-ENV ARDUPILOT_GAZEBO_HOME=/opt/ardupilot_gazebo
-RUN git clone --depth 1 https://github.com/ArduPilot/ardupilot_gazebo.git ${ARDUPILOT_GAZEBO_HOME} \
-    && cd ${ARDUPILOT_GAZEBO_HOME} \
-    && mkdir build && cd build \
-    && cmake .. -DCMAKE_BUILD_TYPE=Release \
-    && make -j$(nproc) \
-    && make install
-
-# Set up Gazebo Harmonic environment for ArduPilot integration
-ENV GZ_SIM_RESOURCE_PATH="${ARDUPILOT_GAZEBO_HOME}/models:${ARDUPILOT_GAZEBO_HOME}/worlds"
-ENV GZ_SIM_SYSTEM_PLUGIN_PATH="${ARDUPILOT_GAZEBO_HOME}/build"
-
 # Setup workspace
 WORKDIR /ws
 RUN mkdir -p src
 
-# Source ROS2 and Gazebo on bash startup
+# Source ROS2 on bash startup
 RUN echo "source /opt/ros/humble/setup.bash" >> ~/.bashrc \
-    && echo "source /ws/install/setup.bash 2>/dev/null || true" >> ~/.bashrc \
-    && echo "export GZ_SIM_RESOURCE_PATH=${ARDUPILOT_GAZEBO_HOME}/models:${ARDUPILOT_GAZEBO_HOME}/worlds" >> ~/.bashrc \
-    && echo "export GZ_SIM_SYSTEM_PLUGIN_PATH=${ARDUPILOT_GAZEBO_HOME}/build" >> ~/.bashrc
+    && echo "source /ws/install/setup.bash 2>/dev/null || true" >> ~/.bashrc
 
 # Default command
 CMD ["/bin/bash"]
