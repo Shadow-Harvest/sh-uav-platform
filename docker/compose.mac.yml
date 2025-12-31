@@ -1,20 +1,30 @@
-# Mac-specific overrides for hybrid setup:
-# - Gazebo runs natively on Mac (Metal GPU)
-# - SITL, MAVROS, ROS2 run in this container
+# Mac Hybrid Setup - supports multiple configurations:
+#
+# Option A: Full Docker (CI/Headless)
+#   - SITL runs in Docker (scripts/start_sitl.sh)
+#   - MAVROS runs in Docker
+#   - No visualization
+#
+# Option B: Native Gazebo + Native SITL + Docker ROS2
+#   - Gazebo runs natively on Mac (Metal GPU)
+#   - SITL runs natively on Mac
+#   - MAVROS connects from Docker to native SITL
+#
+# Option C: Native Gazebo + Docker SITL + Docker ROS2
+#   - Gazebo runs natively on Mac (Metal GPU)
+#   - SITL runs in Docker, connects to native Gazebo
+#   - MAVROS runs in Docker
+#
 services:
   dev:
     # On Mac, network_mode: host doesn't work
     # Use bridge network with port mapping
     network_mode: bridge
 
-    # Expose ports for communication with native Gazebo
     ports:
-      # ArduPilot FDM protocol (SITL <-> Gazebo)
-      - "9002:9002/udp"   # FDM in (actuator commands)
-      - "9003:9003/udp"   # FDM out (sensor data)
-      # MAVLink (GCS <-> SITL)
+      # MAVLink ports for GCS connections (optional)
       - "14550:14550/udp"
-      - "14540:14540/udp"
+      - "14551:14551/udp"
 
     # Allow container to reach Mac host
     extra_hosts:
@@ -23,3 +33,5 @@ services:
     # No display/X11 needed - Gazebo runs natively on Mac
     environment:
       - ROS_DOMAIN_ID=42
+      # For MAVROS to connect to native SITL on Mac host
+      - MAVROS_FCU_URL=udp://:14540@host.docker.internal:14550
